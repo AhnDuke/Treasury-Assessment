@@ -4,9 +4,9 @@
  * A federal compliance instrument, not a SaaS dashboard: a paper/ledger
  * palette (evoking the physical checklist Jenny described using) and
  * stamp-toned status colors, instead of default Tailwind slate/blue/emerald.
- * One consistent theme regardless of system dark-mode preference — the
- * audience explicitly spans very low tech comfort, so a predictable look
- * matters more than adapting to a device setting here.
+ * Light is the default and the design's anchor; dark follows the same
+ * ledger/stamp character with luminance inverted, activated by system
+ * preference or an explicit toggle (persisted via data-theme).
  */
 :root {
   --color-paper: #f7f6f2;
@@ -29,6 +29,54 @@
   --color-reject: #9b2c2c;
   --color-reject-bg: #f5e3e1;
   --color-reject-border: #e6bcb8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-paper: #191c1a;
+    --color-paper-muted: #242822;
+    --color-ink: #ecece2;
+    --color-ink-muted: #a8afa6;
+    --color-border: #3a3f37;
+
+    --color-seal: #6fa0d8;
+    --color-seal-dark: #8fb6e2;
+
+    --color-verified: #7cc999;
+    --color-verified-bg: #1e3324;
+    --color-verified-border: #3a5c43;
+
+    --color-flag: #e6b673;
+    --color-flag-bg: #3a2e18;
+    --color-flag-border: #5c4826;
+
+    --color-reject: #ec9a9a;
+    --color-reject-bg: #3a1f1f;
+    --color-reject-border: #5c3232;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-paper: #191c1a;
+  --color-paper-muted: #242822;
+  --color-ink: #ecece2;
+  --color-ink-muted: #a8afa6;
+  --color-border: #3a3f37;
+
+  --color-seal: #6fa0d8;
+  --color-seal-dark: #8fb6e2;
+
+  --color-verified: #7cc999;
+  --color-verified-bg: #1e3324;
+  --color-verified-border: #3a5c43;
+
+  --color-flag: #e6b673;
+  --color-flag-bg: #3a2e18;
+  --color-flag-border: #5c4826;
+
+  --color-reject: #ec9a9a;
+  --color-reject-bg: #3a1f1f;
+  --color-reject-border: #5c3232;
 }
 
 @theme inline {

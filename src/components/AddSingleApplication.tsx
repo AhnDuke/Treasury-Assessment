@@ -2,9 +2,8 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { FileDropzone } from "./FileDropzone";
-import { ResultsCard } from "./ResultsCard";
-import { useSessionState } from "@/lib/useSessionState";
-import type { VerificationResult } from "@/lib/types";
+import { ErrorCard, ResultsCard } from "./ResultsCard";
+import type { ApplicationRecord } from "@/lib/types";
 
 const initialFormState = {
   brandName: "",
@@ -16,20 +15,18 @@ const initialFormState = {
 type FormState = typeof initialFormState;
 type Status = "idle" | "loading" | "done" | "error";
 
-export function SingleVerifyForm() {
+export function AddSingleApplication({ onViewQueue }: { onViewQueue: () => void }) {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
-  const [result, setResult] = useSessionState<VerificationResult | null>("ttb-single-result", null);
+  const [application, setApplication] = useState<ApplicationRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   function handleFile(files: File[]) {
     const chosen = files[0];
     setFile(chosen);
     setPreviewUrl(URL.createObjectURL(chosen));
-    setResult(null);
-    setStatus("idle");
   }
 
   function removeFile() {
@@ -41,6 +38,15 @@ export function SingleVerifyForm() {
     return (event: ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, [key]: event.target.value }));
   }
 
+  function resetForm() {
+    setForm(initialFormState);
+    setFile(null);
+    setPreviewUrl(null);
+    setApplication(null);
+    setStatus("idle");
+    setErrorMessage(null);
+  }
+
   const isFormComplete = Boolean(file && form.brandName && form.classType && form.abvPercent && form.netContents);
 
   async function handleSubmit(event: FormEvent) {
@@ -48,7 +54,7 @@ export function SingleVerifyForm() {
     if (!file) return;
     setStatus("loading");
     setErrorMessage(null);
-    setResult(null);
+    setApplication(null);
 
     const body = new FormData();
     body.append("image", file);
@@ -58,10 +64,10 @@ export function SingleVerifyForm() {
     body.append("netContents", form.netContents);
 
     try {
-      const response = await fetch("/api/verify", { method: "POST", body });
+      const response = await fetch("/api/applications", { method: "POST", body });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Verification failed.");
-      setResult(data as VerificationResult);
+      if (!response.ok) throw new Error(data.error ?? "Could not add this application.");
+      setApplication(data.application as ApplicationRecord);
       setStatus("done");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Something went wrong.");
@@ -107,20 +113,37 @@ export function SingleVerifyForm() {
           disabled={!isFormComplete || status === "loading"}
           className="w-full bg-seal px-4 py-3 text-lg font-semibold text-paper transition-colors hover:bg-seal-dark disabled:cursor-not-allowed disabled:bg-border disabled:text-ink-muted"
         >
-          {status === "loading" ? "Reading label…" : "Verify label"}
+          {status === "loading" ? "Adding application…" : "Add application"}
         </button>
 
-        {errorMessage && <p className="border-l-4 border-reject bg-reject-bg p-3 text-sm text-reject">{errorMessage}</p>}
+        {errorMessage && <ErrorCard message={errorMessage} />}
       </form>
 
-      <div>
-        {status === "loading" && (
-          <div className="flex min-h-30 items-center justify-center border border-border text-ink-muted">
-            Reading label and comparing fields…
+      {status === "loading" && (
+        <div className="flex min-h-30 items-center justify-center border border-border text-ink-muted">Reading label and comparing fields…</div>
+      )}
+
+      {application && (
+        <div className="space-y-4">
+          {application.status === "error" ? (
+            <ErrorCard message={application.errorMessage ?? "Verification failed."} />
+          ) : (
+            <ResultsCard
+              overallStatus={application.overallStatus ?? "rejected"}
+              fields={application.fields ?? []}
+              footer="Saved to the review queue."
+            />
+          )}
+          <div className="flex gap-3">
+            <button type="button" onClick={resetForm} className="flex-1 border border-border py-2 font-medium text-ink hover:bg-paper-muted">
+              Add another application
+            </button>
+            <button type="button" onClick={onViewQueue} className="flex-1 border border-seal py-2 font-medium text-seal hover:bg-verified-bg">
+              View in review queue
+            </button>
           </div>
-        )}
-        {result && <ResultsCard result={result} />}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,17 +1,15 @@
+import type { ReactNode } from "react";
 import { FIELD_STATUS_META, OVERALL_STATUS_META } from "@/lib/statusMeta";
-import type { VerificationResult } from "@/lib/types";
+import type { FieldResult, OverallStatus } from "@/lib/types";
 
-export function ResultsCard({ result }: { result: VerificationResult }) {
-  if (result.error) {
-    return (
-      <div className="animate-reveal rounded border-l-4 border-reject bg-reject-bg p-4 text-reject">
-        <p className="font-semibold">Could not verify this label</p>
-        <p className="mt-1 text-sm">{result.error}</p>
-      </div>
-    );
-  }
+interface ResultsCardProps {
+  overallStatus: OverallStatus;
+  fields: FieldResult[];
+  footer?: ReactNode;
+}
 
-  const overall = OVERALL_STATUS_META[result.overallStatus];
+export function ResultsCard({ overallStatus, fields, footer }: ResultsCardProps) {
+  const overall = OVERALL_STATUS_META[overallStatus];
 
   return (
     <div className="animate-reveal space-y-px">
@@ -23,7 +21,7 @@ export function ResultsCard({ result }: { result: VerificationResult }) {
       </div>
 
       <div className="border border-t-0 border-border">
-        {result.fields.map((field, index) => {
+        {fields.map((field, index) => {
           const meta = FIELD_STATUS_META[field.status];
           return (
             <div
@@ -62,7 +60,16 @@ export function ResultsCard({ result }: { result: VerificationResult }) {
         })}
       </div>
 
-      <p className="mt-3! text-xs text-ink-muted">Processed in {(result.processingTimeMs / 1000).toFixed(1)}s</p>
+      {footer && <p className="mt-3! text-xs text-ink-muted">{footer}</p>}
+    </div>
+  );
+}
+
+export function ErrorCard({ message }: { message: string }) {
+  return (
+    <div className="animate-reveal border-l-4 border-reject bg-reject-bg p-4 text-reject">
+      <p className="font-semibold">Could not verify this label</p>
+      <p className="mt-1 text-sm">{message}</p>
     </div>
   );
 }
