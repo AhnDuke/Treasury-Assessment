@@ -1,3 +1,4 @@
+import { downloadLabelImage } from "./blob";
 import { claimNextPending, updateApplicationResult } from "./db";
 import { runVerification } from "./verify";
 import { mapWithConcurrency } from "./concurrency";
@@ -13,11 +14,7 @@ const CLAIM_BATCH_SIZE = PROCESS_CONCURRENCY * 5;
 
 async function processOne(application: ApplicationRecord): Promise<void> {
   try {
-    const imageResponse = await fetch(application.imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error(`Could not re-fetch the stored label image (HTTP ${imageResponse.status}).`);
-    }
-    const buffer = Buffer.from(await imageResponse.arrayBuffer());
+    const buffer = await downloadLabelImage(application.imageUrl);
     const outcome = await runVerification(buffer.toString("base64"), application.imageContentType, {
       brandName: application.brandName,
       classType: application.classType,
