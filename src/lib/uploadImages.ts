@@ -31,18 +31,41 @@ export function describeFileProblem(file: File): string | null {
  * photos would exceed that on their own.
  */
 export async function uploadLabelImages(files: File[]): Promise<LabelImage[]> {
-  return Promise.all(
-    files.map(async (file) => {
-      const blob = await upload(`labels/${file.name}`, file, {
-        access: "private",
-        handleUploadUrl: "/api/blob/upload-token",
-        contentType: file.type,
-      });
-      return {
-        url: blob.url,
-        filename: file.name,
-        contentType: file.type as LabelImage["contentType"],
-      };
-    })
-  );
+  try {
+    return await Promise.all(
+      files.map(async (file) => {
+        const blob = await upload(`labels/${file.name}`, file, {
+          access: "private",
+          handleUploadUrl: "/api/blob/upload-token",
+          contentType: file.type,
+        });
+        return {
+          url: blob.url,
+          filename: file.name,
+          contentType: file.type as LabelImage["contentType"],
+        };
+      })
+    );
+  } catch (err) {
+    // The SDK flattens a failing token route into a generic upload error, so
+    // ask the route directly for its own explanation — only on the failure
+    // path, so the happy path costs nothing extra.
+    const reason = await explainTokenRouteFailure();
+    throw new Error(reason ?? (err instanceof Error ? err.message : "Could not upload the label photos."));
+  }
+}
+
+async function explainTokenRouteFailure(): Promise<string | null> {
+  try {
+    const response = await fetch("/api/blob/upload-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (response.status < 500) return null; // not a server/config problem
+    const detail = await response.json().catch(() => null);
+    return typeof detail?.error === "string" ? detail.error : null;
+  } catch {
+    return null;
+  }
 }

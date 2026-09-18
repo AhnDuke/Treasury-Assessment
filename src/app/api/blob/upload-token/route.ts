@@ -20,6 +20,15 @@ export const runtime = "nodejs";
  * vector, not only a data-exposure one.
  */
 export async function POST(request: Request) {
+  // Checked explicitly so a missing deployment env var reports itself instead
+  // of surfacing as an opaque 400 from the SDK's own throw.
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json(
+      { error: "Image uploads aren't configured on the server (BLOB_READ_WRITE_TOKEN is not set). Contact your administrator." },
+      { status: 500 }
+    );
+  }
+
   const body = (await request.json()) as HandleUploadBody;
 
   try {
@@ -38,6 +47,8 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(result);
   } catch (err) {
+    // Surfaced in the Vercel function logs — the client only sees the message.
+    console.error("Blob upload token generation failed:", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Upload failed." }, { status: 400 });
   }
 }
