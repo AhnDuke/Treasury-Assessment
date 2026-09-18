@@ -45,71 +45,66 @@ export function BatchVerifyForm() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        <p>
-          Upload a CSV of submitted application data alongside the label images. Each image&apos;s filename must match the{" "}
-          <code className="rounded bg-slate-200 px-1 py-0.5">filename</code> column in the CSV.
-        </p>
-        <a href="/sample-batch-template.csv" download className="mt-2 inline-block font-medium text-blue-600 hover:underline">
-          Download a CSV template
-        </a>
-      </div>
+    <div className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-ink">1. Application data (CSV)</h2>
+          <p className="mb-2 text-sm text-ink-muted">
+            One row per label. Each image&apos;s filename must match the <code className="bg-paper-muted px-1 py-0.5">filename</code> column.
+          </p>
+          {csvFile ? (
+            <div className="flex items-center justify-between border border-border bg-paper-muted px-3 py-2 text-sm">
+              <span className="truncate">{csvFile.name}</span>
+              <button type="button" onClick={() => setCsvFile(null)} className="ml-2 text-ink-muted hover:text-reject">
+                Remove
+              </button>
+            </div>
+          ) : (
+            <FileDropzone accept=".csv,text/csv" onFiles={(files) => setCsvFile(files[0])} helperText="One row per label" />
+          )}
+          <a href="/sample-batch-template.csv" download className="mt-2 inline-block text-sm font-medium text-seal hover:underline">
+            Download a CSV template
+          </a>
+        </section>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <span className="mb-2 block text-sm font-medium text-slate-700">Application Data (CSV)</span>
-            {csvFile ? (
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                <span className="truncate">{csvFile.name}</span>
-                <button type="button" onClick={() => setCsvFile(null)} className="ml-2 text-slate-400 hover:text-red-600">
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <FileDropzone accept=".csv,text/csv" onFiles={(files) => setCsvFile(files[0])} helperText="One row per label" />
-            )}
-          </div>
-          <div>
-            <span className="mb-2 block text-sm font-medium text-slate-700">Label Images ({imageFiles.length} selected)</span>
-            <FileDropzone
-              multiple
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onFiles={(files) => setImageFiles((prev) => [...prev, ...files])}
-              helperText="Up to 25 images per batch"
-            />
-            {imageFiles.length > 0 && (
-              <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto text-sm">
-                {imageFiles.map((file, index) => (
-                  <li key={`${file.name}-${index}`} className="flex items-center justify-between rounded bg-slate-100 px-2 py-1">
-                    <span className="truncate">{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="ml-2 text-slate-400 hover:text-red-600"
-                      aria-label={`Remove ${file.name}`}
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-ink">2. Label photos ({imageFiles.length} selected)</h2>
+          <FileDropzone
+            multiple
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onFiles={(files) => setImageFiles((prev) => [...prev, ...files])}
+            helperText="Up to 25 images per batch"
+          />
+          {imageFiles.length > 0 && (
+            <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto text-sm">
+              {imageFiles.map((file, index) => (
+                <li key={`${file.name}-${index}`} className="flex items-center justify-between bg-paper-muted px-2 py-1">
+                  <span className="truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="ml-2 text-ink-muted hover:text-reject"
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full rounded-lg bg-blue-600 px-4 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="w-full bg-seal px-4 py-3 text-lg font-semibold text-paper transition-colors hover:bg-seal-dark disabled:cursor-not-allowed disabled:bg-border disabled:text-ink-muted"
         >
           {status === "loading"
             ? `Verifying ${imageFiles.length} label${imageFiles.length === 1 ? "" : "s"}…`
-            : `Verify ${imageFiles.length || ""} Label${imageFiles.length === 1 ? "" : "s"}`.trim()}
+            : `Verify ${imageFiles.length || ""} label${imageFiles.length === 1 ? "" : "s"}`.trim()}
         </button>
 
-        {errorMessage && <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{errorMessage}</p>}
+        {errorMessage && <p className="border-l-4 border-reject bg-reject-bg p-3 text-sm text-reject">{errorMessage}</p>}
       </form>
 
       {results && <BatchResultsTable results={results} />}

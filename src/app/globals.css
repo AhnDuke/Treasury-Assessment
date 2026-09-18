@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
+/*
+ * A federal compliance instrument, not a SaaS dashboard: a paper/ledger
+ * palette (evoking the physical checklist Jenny described using) and
+ * stamp-toned status colors, instead of default Tailwind slate/blue/emerald.
+ * One consistent theme regardless of system dark-mode preference — the
+ * audience explicitly spans very low tech comfort, so a predictable look
+ * matters more than adapting to a device setting here.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-paper: #f7f6f2;
+  --color-paper-muted: #efece3;
+  --color-ink: #1c2321;
+  --color-ink-muted: #5b645f;
+  --color-border: #ddd6c4;
+
+  --color-seal: #1e3a5f;
+  --color-seal-dark: #16293f;
+
+  --color-verified: #2f6844;
+  --color-verified-bg: #e7f1ea;
+  --color-verified-border: #bcd8c3;
+
+  --color-flag: #b5762a;
+  --color-flag-bg: #f6ebda;
+  --color-flag-border: #e6cd9f;
+
+  --color-reject: #9b2c2c;
+  --color-reject-bg: #f5e3e1;
+  --color-reject-border: #e6bcb8;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-paper: var(--color-paper);
+  --color-paper-muted: var(--color-paper-muted);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-border: var(--color-border);
+  --color-seal: var(--color-seal);
+  --color-seal-dark: var(--color-seal-dark);
+  --color-verified: var(--color-verified);
+  --color-verified-bg: var(--color-verified-bg);
+  --color-verified-border: var(--color-verified-border);
+  --color-flag: var(--color-flag);
+  --color-flag-bg: var(--color-flag-bg);
+  --color-flag-border: var(--color-flag-border);
+  --color-reject: var(--color-reject);
+  --color-reject-bg: var(--color-reject-bg);
+  --color-reject-border: var(--color-reject-border);
+  --font-sans: var(--font-public-sans);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Visible keyboard focus everywhere, on top of Tailwind's focus-visible utilities. */
+:focus-visible {
+  outline: 2px solid var(--color-seal);
+  outline-offset: 2px;
+}
+
+/* The one deliberate reveal: the verification ledger appearing after a result comes back. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-reveal {
+  animation: reveal 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-reveal {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

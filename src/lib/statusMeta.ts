@@ -1,14 +1,39 @@
 import type { FieldStatus, OverallStatus } from "./types";
 
-export const FIELD_STATUS_META: Record<FieldStatus, { icon: string; label: string; className: string }> = {
-  match: { icon: "✅", label: "Match", className: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-  review: { icon: "⚠️", label: "Needs Review", className: "text-amber-700 bg-amber-50 border-amber-200" },
-  mismatch: { icon: "❌", label: "Mismatch", className: "text-red-700 bg-red-50 border-red-200" },
-  missing: { icon: "❓", label: "Not Found", className: "text-red-700 bg-red-50 border-red-200" },
+// Plain typographic glyphs, not emoji: colored via our own palette instead
+// of the platform's built-in emoji rendering, so a status mark looks the
+// same on every device — closer to a stamped mark on a paper ledger than a
+// chat-app icon, and more predictable for the "Dave" / "my mother" audience.
+export const FIELD_STATUS_META: Record<
+  FieldStatus,
+  { glyph: string; label: string; className: string; edgeClassName: string }
+> = {
+  match: { glyph: "✓", label: "Match", className: "text-verified bg-verified-bg border-verified-border", edgeClassName: "border-l-verified" },
+  review: { glyph: "!", label: "Needs review", className: "text-flag bg-flag-bg border-flag-border", edgeClassName: "border-l-flag" },
+  mismatch: { glyph: "✕", label: "Mismatch", className: "text-reject bg-reject-bg border-reject-border", edgeClassName: "border-l-reject" },
+  missing: { glyph: "?", label: "Not found", className: "text-reject bg-reject-bg border-reject-border", edgeClassName: "border-l-reject" },
 };
 
-export const OVERALL_STATUS_META: Record<OverallStatus, { icon: string; label: string; className: string }> = {
-  approved: { icon: "✅", label: "Approved — All Checks Passed", className: "text-emerald-800 bg-emerald-50 border-emerald-300" },
-  flagged: { icon: "⚠️", label: "Flagged for Review", className: "text-amber-800 bg-amber-50 border-amber-300" },
-  rejected: { icon: "❌", label: "Rejected — Discrepancies Found", className: "text-red-800 bg-red-50 border-red-300" },
+export const OVERALL_STATUS_META: Record<
+  OverallStatus,
+  { glyph: string; label: string; className: string; edgeClassName: string }
+> = {
+  approved: {
+    glyph: "✓",
+    label: "Approved — all checks passed",
+    className: "text-verified bg-verified-bg border-verified-border",
+    edgeClassName: "border-l-verified",
+  },
+  flagged: {
+    glyph: "!",
+    label: "Flagged for review",
+    className: "text-flag bg-flag-bg border-flag-border",
+    edgeClassName: "border-l-flag",
+  },
+  rejected: {
+    glyph: "✕",
+    label: "Rejected — discrepancies found",
+    className: "text-reject bg-reject-bg border-reject-border",
+    edgeClassName: "border-l-reject",
+  },
 };
