@@ -26,12 +26,18 @@ Other scripts: `npm run build` / `npm start` (production build), `npm test` (uni
 
 The Government Warning text is fixed by federal statute (27 CFR 16.21), so it isn't a form field — the app checks the label against the statutory wording directly.
 
+**Quality escalation** — if any field doesn't cleanly match, the app gets a second, independent read from a stronger model (Sonnet) before the result reaches a reviewer, and surfaces whether the two models agree. Only the labels that actually need it pay for the extra call.
+
+**Try it** — [public/sample-labels/](public/sample-labels/) has three ready-made synthetic labels, and [public/sample-batch-template.csv](public/sample-batch-template.csv) has matching application data (including one deliberate ABV mismatch, to show the escalation flow) for a real batch run without sourcing your own images.
+
 ## Approach & Technical Choices
 
 - **Next.js (TypeScript, App Router) on Vercel, one call to Claude vision, no separate OCR/parsing pipeline.** The 5-second response bar (called out explicitly by the stakeholder) ruled out anything with multiple model round-trips or a separate OCR-then-parse stage; asking Claude to return structured fields directly via tool use gets extraction to one request. No database, no auth — the app is stateless request/response, matching the "don't store anything sensitive" prototype guidance.
 - **Fuzzy matching on brand name and class/type, exact matching on the warning statement.** These two fields needed opposite treatment: the interviews gave a concrete example of a brand name that should *not* be flagged as different ("STONE'S THROW" vs "Stone's Throw" — same brand, different casing), while the warning statement was called out as needing to be exact, word-for-word, down to whether the header is capitalized. So brand/class-type use a normalized similarity score (case/punctuation-insensitive; near-misses land in "needs review" rather than a hard fail), while the warning statement is compared verbatim against the statutory text.
 - **ABV and net contents get numeric comparison, not string comparison.** ABV is parsed to a number and compared with a small tolerance; net contents is parsed to a common unit (mL) so "750 mL" and "0.75 L" are recognized as equal.
 - **Overall status is derived, not stored:** any mismatch/missing field rejects the label; any "needs review" field (without an outright mismatch) flags it; otherwise it's approved. The per-field detail is what an agent actually acts on — the overall banner is a summary, not a separate judgment call.
+- **Escalation triggers off our own deterministic match/review/mismatch status, not a self-reported LLM confidence score.** An earlier idea was to have the model grade its own certainty (0–10) per field; that number isn't a calibrated signal (LLMs are known to be poorly calibrated at self-assessed confidence), so instead the second-opinion call fires only on fields the comparison logic already flagged, and it never silently overrides the first read — a disagreement between models is shown to the reviewer, not resolved automatically.
+- **Results persist in `sessionStorage`, not a database.** The last single-label result and the last batch table survive a page refresh, purely client-side — no new backend, no data at rest, no secrets. A real audit trail or cross-device history would need an actual datastore, which is deliberately out of scope here (see trade-offs).
 
 ## Assumptions & Trade-offs
 
@@ -39,14 +45,14 @@ The Government Warning text is fixed by federal statute (27 CFR 16.21), so it is
 - **No COLA integration.** Per the IT stakeholder, this is a standalone proof-of-concept; COLA integration was explicitly described as a separate, much larger effort.
 - **Low-quality images (angles, glare, poor lighting) aren't specially handled.** The stakeholder who raised this flagged it herself as possibly out of scope for a prototype; a bad photo will just produce lower-quality extraction or nulls, surfaced as "not found" rather than a crash.
 - **Batch mode is demo-scale (25 files/request), not the 200-300 file imports described.** A production version of that would need a job queue instead of processing an entire batch within one request/response cycle.
-- **No auth, no persistence, no audit trail.** Nothing is stored — each request is independent. Fine for a prototype; a production deployment handling real applications would need both, plus the PII/retention review the IT stakeholder flagged.
+- **No auth, no server-side persistence, no audit trail.** Nothing is stored server-side — each request is independent, and the only client-side persistence is a browser-local "last result" convenience (see above). Fine for a prototype; a production deployment handling real applications would need real auth and an audit trail, plus the PII/retention review the IT stakeholder flagged.
 - **Deployed on public infrastructure (Vercel) calling a public API (Anthropic).** The stakeholder interview mentioned TTB's real network blocks outbound calls to ML endpoints — a production deployment inside that network would need an on-prem or VPC-hosted model rather than a public API call. Not a concern for this prototype, since it isn't deployed inside TTB's network.
 - **Matching thresholds (fuzzy-match similarity, ABV tolerance, net-contents tolerance) are reasonable defaults, not calibrated against real TTB adjudication data.**
 
 ## Tech Stack
 
 - Next.js 16 (App Router) + React 19 + TypeScript
-- Tailwind CSS v4
-- Anthropic Claude (`claude-haiku-4-5`) for label field extraction, via `@anthropic-ai/sdk`
-- Vitest for unit tests on the comparison/matching/CSV logic
+- Tailwind CSS v4, Public Sans (USWDS's own typeface)
+- Anthropic Claude — `claude-haiku-4-5` for label extraction, `claude-sonnet-5` for escalated second opinions — via `@anthropic-ai/sdk`
+- Vitest for unit tests on the comparison/matching/escalation/CSV logic
 - Vercel for deployment
