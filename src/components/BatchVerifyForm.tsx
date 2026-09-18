@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { FileDropzone } from "./FileDropzone";
 import { BatchResultsTable } from "./BatchResultsTable";
+import { useSessionState } from "@/lib/useSessionState";
 import type { VerificationResult } from "@/lib/types";
 
 type Status = "idle" | "loading" | "done" | "error";
@@ -11,7 +12,7 @@ export function BatchVerifyForm() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [status, setStatus] = useState<Status>("idle");
-  const [results, setResults] = useState<VerificationResult[] | null>(null);
+  const [results, setResults] = useSessionState<VerificationResult[] | null>("ttb-batch-results", null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const canSubmit = Boolean(csvFile) && imageFiles.length > 0 && status !== "loading";

@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { FileDropzone } from "./FileDropzone";
 import { ResultsCard } from "./ResultsCard";
+import { useSessionState } from "@/lib/useSessionState";
 import type { VerificationResult } from "@/lib/types";
 
 const initialFormState = {
@@ -20,7 +21,7 @@ export function SingleVerifyForm() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
-  const [result, setResult] = useState<VerificationResult | null>(null);
+  const [result, setResult] = useSessionState<VerificationResult | null>("ttb-single-result", null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   function handleFile(files: File[]) {
