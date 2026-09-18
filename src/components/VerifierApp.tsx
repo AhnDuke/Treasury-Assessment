@@ -10,21 +10,21 @@ export function VerifierApp() {
   const [tab, setTab] = useState<Tab>("single");
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">TTB Label Verification</h1>
-        <p className="mt-2 text-slate-600">
-          Upload a label image and the submitted application data to check brand name, class/type, ABV, net contents, and the
-          Government Warning statement in seconds.
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">TTB label verification</h1>
+        <p className="mt-2 max-w-prose text-ink-muted">
+          Check a label photo against the submitted application: brand name, class/type, ABV, net contents, and the
+          government warning statement.
         </p>
       </header>
 
-      <div className="mb-6 inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1">
+      <div className="mb-8 flex gap-6 border-b border-border">
         <TabButton active={tab === "single"} onClick={() => setTab("single")}>
-          Single Label
+          Single label
         </TabButton>
         <TabButton active={tab === "batch"} onClick={() => setTab("batch")}>
-          Batch Upload
+          Batch upload
         </TabButton>
       </div>
 
@@ -38,8 +38,8 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
-        active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+      className={`-mb-px border-b-2 px-0.5 pb-3 text-base font-semibold transition-colors ${
+        active ? "border-seal text-ink" : "border-transparent text-ink-muted hover:text-ink"
       }`}
     >
       {children}

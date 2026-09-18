@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { FileDropzone } from "./FileDropzone";
 import { ResultsCard } from "./ResultsCard";
+import { useSessionState } from "@/lib/useSessionState";
 import type { VerificationResult } from "@/lib/types";
 
 const initialFormState = {
@@ -20,7 +21,7 @@ export function SingleVerifyForm() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
-  const [result, setResult] = useState<VerificationResult | null>(null);
+  const [result, setResult] = useSessionState<VerificationResult | null>("ttb-single-result", null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   function handleFile(files: File[]) {
@@ -69,55 +70,56 @@ export function SingleVerifyForm() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField label="Brand Name" value={form.brandName} onChange={updateField("brandName")} placeholder="OLD TOM DISTILLERY" />
-          <TextField
-            label="Class/Type Designation"
-            value={form.classType}
-            onChange={updateField("classType")}
-            placeholder="Kentucky Straight Bourbon Whiskey"
-          />
-          <TextField label="Alcohol Content (% ABV)" value={form.abvPercent} onChange={updateField("abvPercent")} placeholder="45" type="number" step="0.1" />
-          <TextField label="Net Contents" value={form.netContents} onChange={updateField("netContents")} placeholder="750 mL" />
-        </div>
-
-        {previewUrl ? (
-          <div className="rounded-lg border border-slate-200 p-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewUrl} alt="Label preview" className="mx-auto max-h-64 rounded object-contain" />
-            <button type="button" onClick={removeFile} className="mt-3 text-sm font-medium text-slate-500 hover:text-red-600">
-              Remove image
-            </button>
+    <div className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-ink">1. Application data</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField label="Brand name" value={form.brandName} onChange={updateField("brandName")} placeholder="OLD TOM DISTILLERY" />
+            <TextField
+              label="Class/type designation"
+              value={form.classType}
+              onChange={updateField("classType")}
+              placeholder="Kentucky Straight Bourbon Whiskey"
+            />
+            <TextField label="Alcohol content (% ABV)" value={form.abvPercent} onChange={updateField("abvPercent")} placeholder="45" type="number" step="0.1" />
+            <TextField label="Net contents" value={form.netContents} onChange={updateField("netContents")} placeholder="750 mL" />
           </div>
-        ) : (
-          <FileDropzone accept="image/jpeg,image/png,image/webp,image/gif" onFiles={handleFile} helperText="JPEG, PNG, WEBP, or GIF — up to 8MB" />
-        )}
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-ink">2. Label photo</h2>
+          {previewUrl ? (
+            <div className="border border-border bg-paper-muted p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewUrl} alt="Label preview" className="mx-auto max-h-64 object-contain" />
+              <button type="button" onClick={removeFile} className="mt-3 text-sm font-medium text-ink-muted hover:text-reject">
+                Remove image
+              </button>
+            </div>
+          ) : (
+            <FileDropzone accept="image/jpeg,image/png,image/webp,image/gif" onFiles={handleFile} helperText="JPEG, PNG, WEBP, or GIF — up to 8MB" />
+          )}
+        </section>
 
         <button
           type="submit"
           disabled={!isFormComplete || status === "loading"}
-          className="w-full rounded-lg bg-blue-600 px-4 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="w-full bg-seal px-4 py-3 text-lg font-semibold text-paper transition-colors hover:bg-seal-dark disabled:cursor-not-allowed disabled:bg-border disabled:text-ink-muted"
         >
-          {status === "loading" ? "Reading label…" : "Verify Label"}
+          {status === "loading" ? "Reading label…" : "Verify label"}
         </button>
 
-        {errorMessage && <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{errorMessage}</p>}
+        {errorMessage && <p className="border-l-4 border-reject bg-reject-bg p-3 text-sm text-reject">{errorMessage}</p>}
       </form>
 
       <div>
         {status === "loading" && (
-          <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-slate-200 text-slate-500">
+          <div className="flex min-h-30 items-center justify-center border border-border text-ink-muted">
             Reading label and comparing fields…
           </div>
         )}
         {result && <ResultsCard result={result} />}
-        {status === "idle" && !result && (
-          <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-dashed border-slate-200 text-center text-slate-400">
-            Results will appear here after you verify a label.
-          </div>
-        )}
       </div>
     </div>
   );
@@ -140,7 +142,7 @@ function TextField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-ink">{label}</span>
       <input
         type={type}
         step={step}
@@ -148,7 +150,7 @@ function TextField({
         onChange={onChange}
         placeholder={placeholder}
         required
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+        className="w-full border border-border bg-paper px-3 py-2 text-ink placeholder:text-ink-muted/60 focus:border-seal focus:outline-none"
       />
     </label>
   );

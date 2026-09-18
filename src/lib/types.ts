@@ -15,6 +15,12 @@ export interface ExtractedLabelData {
 
 export type FieldStatus = "match" | "review" | "mismatch" | "missing";
 
+export interface SecondOpinion {
+  model: string;
+  extracted: string | null;
+  agreesWithFirstPass: boolean;
+}
+
 export interface FieldResult {
   field: string;
   label: string;
@@ -22,6 +28,7 @@ export interface FieldResult {
   extracted: string | null;
   status: FieldStatus;
   detail?: string;
+  secondOpinion?: SecondOpinion;
 }
 
 export type OverallStatus = "approved" | "flagged" | "rejected";

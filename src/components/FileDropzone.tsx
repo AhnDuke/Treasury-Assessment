@@ -27,15 +27,15 @@ export function FileDropzone({ multiple = false, accept, onFiles, helperText }: 
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
-      className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${
-        isDragging ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-slate-50 hover:bg-slate-100"
+      className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed p-8 text-center transition-colors ${
+        isDragging ? "border-seal bg-verified-bg" : "border-border bg-paper-muted hover:bg-border/40"
       }`}
     >
-      <span className="text-3xl" aria-hidden>
-        📁
-      </span>
-      <span className="font-medium text-slate-700">Click to choose {multiple ? "files" : "a file"}, or drag it here</span>
-      <span className="text-sm text-slate-500">{helperText}</span>
+      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-7 text-ink-muted">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+      </svg>
+      <span className="font-medium text-ink">Click to choose {multiple ? "files" : "a file"}, or drag it here</span>
+      <span className="text-sm text-ink-muted">{helperText}</span>
       <input
         type="file"
         accept={accept}
