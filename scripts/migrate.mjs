@@ -20,10 +20,20 @@ if (!databaseUrl) {
 const sql = neon(databaseUrl);
 const schema = readFileSync(schemaPath, "utf8");
 
+// Strip `--` comment lines out of each statement rather than dropping whole
+// chunks that begin with one — a statement preceded by a comment block (as
+// CREATE TABLE is here) would otherwise be discarded silently. Naive about
+// `--` inside string literals, which this schema doesn't have.
 const statements = schema
   .split(";")
-  .map((statement) => statement.trim())
-  .filter((statement) => statement.length > 0 && !statement.startsWith("--"));
+  .map((statement) =>
+    statement
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("--"))
+      .join("\n")
+      .trim()
+  )
+  .filter((statement) => statement.length > 0);
 
 for (const statement of statements) {
   console.log(`Running: ${statement.slice(0, 60)}...`);
