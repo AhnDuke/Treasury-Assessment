@@ -92,6 +92,13 @@ export function ApplicationQueue() {
     setBusyId(null);
   }
 
+  async function handleResume(batchId: string) {
+    setBusyId(batchId);
+    await fetch("/api/applications/process", { method: "POST" });
+    await fetchApplications();
+    setBusyId(null);
+  }
+
   if (loadError) {
     return <ErrorCard title="Could not load the review queue" message={loadError} />;
   }
@@ -123,14 +130,24 @@ export function ApplicationQueue() {
           <span className="text-ink">
             Import in progress: {batch.finished}/{batch.total} processed
           </span>
-          <button
-            type="button"
-            onClick={() => handleCancelBatch(batch.importBatchId)}
-            disabled={busyId === batch.importBatchId}
-            className="border border-reject px-2 py-1 text-reject hover:bg-reject-bg disabled:opacity-50"
-          >
-            Cancel remaining
-          </button>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => handleResume(batch.importBatchId)}
+              disabled={busyId === batch.importBatchId}
+              className="border border-seal px-2 py-1 text-seal hover:bg-paper disabled:opacity-50"
+            >
+              Resume processing
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCancelBatch(batch.importBatchId)}
+              disabled={busyId === batch.importBatchId}
+              className="border border-reject px-2 py-1 text-reject hover:bg-reject-bg disabled:opacity-50"
+            >
+              Cancel remaining
+            </button>
+          </span>
         </div>
       ))}
 
