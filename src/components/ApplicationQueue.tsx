@@ -47,11 +47,18 @@ export function ApplicationQueue() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchApplications = useCallback(async () => {
-    const response = await fetch("/api/applications");
-    const data = await response.json();
-    setApplications(data.applications ?? []);
+    try {
+      const response = await fetch("/api/applications");
+      if (!response.ok) throw new Error(`The server returned an error (${response.status}).`);
+      const data = await response.json();
+      setApplications(data.applications ?? []);
+      setLoadError(null);
+    } catch {
+      setLoadError("Could not load the review queue. Check the server configuration and try again.");
+    }
   }, []);
 
   useEffect(() => {
@@ -85,6 +92,9 @@ export function ApplicationQueue() {
     setBusyId(null);
   }
 
+  if (loadError) {
+    return <ErrorCard title="Could not load the review queue" message={loadError} />;
+  }
   if (applications === null) {
     return <p className="text-ink-muted">Loading applications…</p>;
   }

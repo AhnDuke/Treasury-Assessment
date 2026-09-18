@@ -65,10 +65,10 @@ export function ResultsCard({ overallStatus, fields, footer }: ResultsCardProps)
   );
 }
 
-export function ErrorCard({ message }: { message: string }) {
+export function ErrorCard({ message, title = "Could not verify this label" }: { message: string; title?: string }) {
   return (
     <div className="animate-reveal border-l-4 border-reject bg-reject-bg p-4 text-reject">
-      <p className="font-semibold">Could not verify this label</p>
+      <p className="font-semibold">{title}</p>
       <p className="mt-1 text-sm">{message}</p>
     </div>
   );
