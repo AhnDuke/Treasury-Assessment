@@ -14,8 +14,13 @@ const CLAIM_BATCH_SIZE = PROCESS_CONCURRENCY * 5;
 
 async function processOne(application: ApplicationRecord): Promise<void> {
   try {
-    const buffer = await downloadLabelImage(application.imageUrl);
-    const outcome = await runVerification(buffer.toString("base64"), application.imageContentType, {
+    const images = await Promise.all(
+      application.images.map(async (image) => ({
+        base64: (await downloadLabelImage(image.url)).toString("base64"),
+        mediaType: image.contentType,
+      }))
+    );
+    const outcome = await runVerification(images, {
       brandName: application.brandName,
       classType: application.classType,
       abvPercent: application.abvPercent,

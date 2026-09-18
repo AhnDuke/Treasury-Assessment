@@ -1,4 +1,4 @@
-filename,brand_name,class_type,abv_percent,net_contents
-old-tom-bourbon.png,OLD TOM DISTILLERY,Kentucky Straight Bourbon Whiskey,45,750 mL
-stones-throw-ipa.png,STONE'S THROW,India Pale Ale,6.2,355 mL
-riverbend-cabernet.png,RIVERBEND CELLARS,Cabernet Sauvignon,14.5,750 mL
+filenames,brand_name,class_type,abv_percent,net_contents
+old-tom-bourbon-front.png;old-tom-bourbon-back.png,OLD TOM DISTILLERY,Kentucky Straight Bourbon Whiskey,45,750 mL
+stones-throw-ipa-front.png;stones-throw-ipa-back.png,STONE'S THROW,India Pale Ale,6.2,355 mL
+riverbend-cabernet-front.png;riverbend-cabernet-back.png,RIVERBEND CELLARS,Cabernet Sauvignon,14.5,750 mL

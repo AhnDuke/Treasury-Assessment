@@ -43,6 +43,16 @@ export interface VerificationOutcome {
 
 export type ApplicationStatus = "pending" | "processing" | "done" | "cancelled" | "error";
 
+/** One uploaded label photo. Applications carry several (front, back, ...). */
+export interface LabelImage {
+  url: string;
+  filename: string;
+  contentType: AcceptedImageType;
+}
+
+export const MIN_IMAGES_PER_APPLICATION = 2;
+export const MAX_IMAGES_PER_APPLICATION = 5;
+
 /** A persisted application row (Neon) - the unit the review queue works on. */
 export interface ApplicationRecord {
   id: string;
@@ -51,9 +61,7 @@ export interface ApplicationRecord {
   classType: string;
   abvPercent: number;
   netContents: string;
-  imageUrl: string;
-  imageFilename: string;
-  imageContentType: AcceptedImageType;
+  images: LabelImage[];
   status: ApplicationStatus;
   overallStatus: OverallStatus | null;
   fields: FieldResult[] | null;

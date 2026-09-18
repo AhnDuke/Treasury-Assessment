@@ -191,7 +191,12 @@ export function ApplicationQueue() {
                   <Fragment key={application.id}>
                     <tr className="align-top">
                       <td className="px-4 py-3 font-medium text-ink">{application.brandName}</td>
-                      <td className="max-w-40 truncate px-4 py-3 text-ink-muted">{application.imageFilename}</td>
+                      <td className="max-w-40 truncate px-4 py-3 text-ink-muted">
+                        {application.images[0]?.filename ?? "—"}
+                        {application.images.length > 1 && (
+                          <span className="text-ink-muted/70"> +{application.images.length - 1}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <StatusBadge application={application} />
                       </td>

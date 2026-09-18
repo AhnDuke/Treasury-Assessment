@@ -1,5 +1,5 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import type { ApplicationData, ApplicationRecord, ApplicationStatus, BatchProgress, FieldResult, OverallStatus } from "./types";
+import type { ApplicationData, ApplicationRecord, ApplicationStatus, BatchProgress, FieldResult, LabelImage, OverallStatus } from "./types";
 
 let sql: NeonQueryFunction<false, false> | null = null;
 
@@ -22,9 +22,7 @@ function toApplicationRecord(row: any): ApplicationRecord {
     classType: row.class_type,
     abvPercent: Number(row.abv_percent),
     netContents: row.net_contents,
-    imageUrl: row.image_url,
-    imageFilename: row.image_filename,
-    imageContentType: row.image_content_type,
+    images: row.images ?? [],
     status: row.status,
     overallStatus: row.overall_status,
     fields: row.fields_json,
@@ -36,14 +34,14 @@ function toApplicationRecord(row: any): ApplicationRecord {
 
 export async function createApplication(
   data: ApplicationData,
-  image: { url: string; filename: string; contentType: string },
+  images: LabelImage[],
   status: ApplicationStatus,
   importBatchId: string | null = null
 ): Promise<ApplicationRecord> {
   const db = getSql();
   const rows = await db`
-    INSERT INTO applications (import_batch_id, brand_name, class_type, abv_percent, net_contents, image_url, image_filename, image_content_type, status)
-    VALUES (${importBatchId}, ${data.brandName}, ${data.classType}, ${data.abvPercent}, ${data.netContents}, ${image.url}, ${image.filename}, ${image.contentType}, ${status})
+    INSERT INTO applications (import_batch_id, brand_name, class_type, abv_percent, net_contents, images, status)
+    VALUES (${importBatchId}, ${data.brandName}, ${data.classType}, ${data.abvPercent}, ${data.netContents}, ${JSON.stringify(images)}, ${status})
     RETURNING *
   `;
   return toApplicationRecord(rows[0]);

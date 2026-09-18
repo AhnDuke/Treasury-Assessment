@@ -11,6 +11,12 @@ const FUZZY_MATCH_THRESHOLD = 0.85;
 const ABV_TOLERANCE_PERCENT = 0.3;
 const NET_CONTENTS_TOLERANCE_RATIO = 0.01;
 
+// Above this similarity, a non-exact warning statement is treated as a
+// transcription artifact needing human confirmation rather than a wording
+// violation. The statutory text is ~250 characters, so this still only
+// tolerates a few characters of drift.
+const WARNING_TRANSCRIPTION_THRESHOLD = 0.97;
+
 const OZ_TO_ML = 29.5735;
 const UNIT_TO_ML: Array<{ pattern: RegExp; toMl: number }> = [
   { pattern: /^fl ?oz$/, toMl: OZ_TO_ML },
@@ -130,13 +136,30 @@ function compareWarningStatement(extracted: string | null): FieldResult {
   const headerIsAllCaps = headerMatch ? headerMatch[0] === headerMatch[0].toUpperCase() : false;
 
   if (!textMatches) {
+    // A near-perfect read almost certainly means the label is correct and the
+    // transcription slipped a character — a measurement error, not a label
+    // defect. Treating those as outright mismatches is what produced false
+    // "incorrect warning" reports. Strictness is preserved: anything short of
+    // essentially identical still goes to a human, it just isn't pre-judged
+    // as a violation.
+    const similarity = similarityRatio(expected, extracted);
+    if (similarity >= WARNING_TRANSCRIPTION_THRESHOLD) {
+      return {
+        field: "warningStatement",
+        label,
+        expected,
+        extracted,
+        status: "review",
+        detail: `Wording appears correct (${Math.round(similarity * 100)}% identical) but the transcription differed slightly — likely a reading artifact rather than a label defect. Confirm visually.`,
+      };
+    }
     return {
       field: "warningStatement",
       label,
       expected,
       extracted,
       status: "mismatch",
-      detail: "Wording does not match the required statutory text exactly (27 CFR 16.21).",
+      detail: `Wording does not match the required statutory text (27 CFR 16.21) — only ${Math.round(similarity * 100)}% identical.`,
     };
   }
   if (!headerIsAllCaps) {
