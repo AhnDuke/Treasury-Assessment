@@ -16,9 +16,22 @@ export const metadata: Metadata = {
   description: "Prototype tool for verifying alcohol beverage labels against submitted application data.",
 };
 
+// Runs before paint so an explicit stored theme choice applies immediately —
+// without this, the page would flash the system-default theme first, then
+// snap to the stored one once React hydrates.
+const themeInitScript = `
+try {
+  var stored = localStorage.getItem("ttb-theme");
+  if (stored === "light" || stored === "dark") document.documentElement.setAttribute("data-theme", stored);
+} catch (e) {}
+`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${publicSans.variable} h-full antialiased`}>
+    <html lang="en" className={`${publicSans.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

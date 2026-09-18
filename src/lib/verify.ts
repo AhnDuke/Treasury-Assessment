@@ -1,44 +1,34 @@
 import { extractLabelData, getSecondOpinion } from "./anthropic";
 import { compareLabelToApplication, determineOverallStatus } from "./comparison";
 import { applySecondOpinions, fieldsNeedingSecondOpinion } from "./escalation";
-import type { AcceptedImageType, ApplicationData, VerificationResult } from "./types";
+import type { AcceptedImageType, ApplicationData, VerificationOutcome } from "./types";
 
-export async function verifyLabel(
+/**
+ * The extract -> compare -> escalate pipeline, with no persistence baked in
+ * — callers (the single-add route, the import batch processor) each decide
+ * how to store the result. Throws (with an already-friendly message) on
+ * failure rather than swallowing it, so callers can record it as their own
+ * `error` status instead of a silent default.
+ */
+export async function runVerification(
   imageBase64: string,
   mediaType: AcceptedImageType,
-  expected: ApplicationData,
-  fileName?: string
-): Promise<VerificationResult> {
-  const start = Date.now();
-  try {
-    const extracted = await extractLabelData(imageBase64, mediaType);
-    let fields = compareLabelToApplication(expected, extracted);
+  expected: ApplicationData
+): Promise<VerificationOutcome> {
+  const extracted = await extractLabelData(imageBase64, mediaType);
+  let fields = compareLabelToApplication(expected, extracted);
 
-    const flagged = fieldsNeedingSecondOpinion(fields);
-    if (flagged.length > 0) {
-      try {
-        const secondOpinions = await getSecondOpinion(imageBase64, mediaType, flagged);
-        fields = applySecondOpinions(fields, secondOpinions);
-      } catch {
-        // Escalation is a quality add-on, not a hard dependency: if the
-        // second-opinion call fails, keep the first-pass result rather than
-        // failing the whole verification over it.
-      }
+  const flagged = fieldsNeedingSecondOpinion(fields);
+  if (flagged.length > 0) {
+    try {
+      const secondOpinions = await getSecondOpinion(imageBase64, mediaType, flagged);
+      fields = applySecondOpinions(fields, secondOpinions);
+    } catch {
+      // Escalation is a quality add-on, not a hard dependency: if the
+      // second-opinion call fails, keep the first-pass result rather than
+      // failing the whole verification over it.
     }
-
-    return {
-      fileName,
-      overallStatus: determineOverallStatus(fields),
-      fields,
-      processingTimeMs: Date.now() - start,
-    };
-  } catch (err) {
-    return {
-      fileName,
-      overallStatus: "rejected",
-      fields: [],
-      processingTimeMs: Date.now() - start,
-      error: err instanceof Error ? err.message : "Unknown error during verification.",
-    };
   }
+
+  return { overallStatus: determineOverallStatus(fields), fields };
 }
