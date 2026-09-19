@@ -13,6 +13,9 @@ const PROCESS_CONCURRENCY = Number(process.env.PROCESS_CONCURRENCY ?? 4);
 const CLAIM_BATCH_SIZE = PROCESS_CONCURRENCY * 5;
 
 async function processOne(application: ApplicationRecord): Promise<void> {
+  // Timed from here rather than from when the row was queued: this measures
+  // what the check costs, not how long the row waited its turn behind others.
+  const startedAt = Date.now();
   try {
     const images = await Promise.all(
       application.images.map(async (image) => ({
@@ -25,16 +28,19 @@ async function processOne(application: ApplicationRecord): Promise<void> {
       classType: application.classType,
       abvPercent: application.abvPercent,
       netContents: application.netContents,
+      beverageType: application.beverageType,
     });
     await updateApplicationResult(application.id, {
       status: "done",
       triageStatus: outcome.triageStatus,
       fields: outcome.fields,
+      processingMs: Date.now() - startedAt,
     });
   } catch (err) {
     await updateApplicationResult(application.id, {
       status: "error",
       errorMessage: err instanceof Error ? err.message : "Unknown error during verification.",
+      processingMs: Date.now() - startedAt,
     });
   }
 }

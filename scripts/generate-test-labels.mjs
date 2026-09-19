@@ -112,7 +112,7 @@ function frontSvg(product) {
   return frameSvg(`${brandTspans}
   ${classTspans}
   <line x1="170" y1="${y - 34}" x2="330" y2="${y - 34}" stroke="${INK}" stroke-width="1" opacity="0.35"/>
-  <text x="250" y="${y}" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle" fill="${INK}">${escapeXml(product.abvText)}</text>
+  ${product.omitAbv ? "" : `<text x="250" y="${y}" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle" fill="${INK}">${escapeXml(product.abvText)}</text>`}
   <text x="250" y="${y + 34}" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle" fill="${INK}">${escapeXml(product.netContents)}</text>
   <text x="250" y="${HEIGHT - 60}" font-family="Georgia, serif" font-size="13" font-style="italic" text-anchor="middle" fill="${INK}" opacity="0.6">${escapeXml(product.origin)}</text>`);
 }
@@ -148,7 +148,7 @@ function backSvg(product, warningMode) {
 
   return frameSvg(`<text x="250" y="100" font-family="Georgia, serif" font-size="19" letter-spacing="3" text-anchor="middle" fill="${INK}">${escapeXml(product.brand)}</text>
   ${descTspans}
-  <text x="250" y="${150 + descLines.length * 22 + 34}" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle" fill="${INK}">${escapeXml(product.netContents)}  |  ${escapeXml(product.abvText)}</text>
+  <text x="250" y="${150 + descLines.length * 22 + 34}" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle" fill="${INK}">${product.omitAbv ? escapeXml(product.netContents) : `${escapeXml(product.netContents)}  |  ${escapeXml(product.abvText)}`}</text>
   <text x="250" y="${150 + descLines.length * 22 + 70}" font-family="Arial, Helvetica, sans-serif" font-size="12" text-anchor="middle" fill="${INK}" opacity="0.7">${escapeXml(product.bottler)}</text>
   ${warningBlock}`);
 }
@@ -168,22 +168,22 @@ function neckSvg(product) {
 // hand-rolled parser and this fixture should exercise the app, not the parser.
 
 const PRODUCTS = [
-  { slug: "old-tom", brand: "OLD TOM DISTILLERY", classType: "Kentucky Straight Bourbon Whiskey", abv: 45, netContents: "750 mL", origin: "Bardstown Kentucky", bottler: "Bottled by Old Tom Distillery Bardstown KY", description: "Distilled and bottled in small batches. Aged in new charred oak barrels." },
-  { slug: "stones-throw", brand: "STONE'S THROW", classType: "India Pale Ale", abv: 6.2, netContents: "355 mL", origin: "Asheville North Carolina", bottler: "Brewed and canned by Stone's Throw Brewing Asheville NC", description: "Dry hopped with Citra and Mosaic. Unfiltered and brewed in small batches." },
-  { slug: "riverbend", brand: "RIVERBEND CELLARS", classType: "Cabernet Sauvignon", abv: 14.5, netContents: "750 mL", origin: "Napa Valley California", bottler: "Produced and bottled by Riverbend Cellars Napa CA", description: "Estate grown and barrel aged eighteen months in French oak." },
-  { slug: "copper-kettle", brand: "COPPER KETTLE", classType: "London Dry Gin", abv: 44, netContents: "750 mL", origin: "Portland Oregon", bottler: "Distilled and bottled by Copper Kettle Spirits Portland OR", description: "Botanicals of juniper coriander and angelica root in a copper pot still." },
-  { slug: "harvest-moon", brand: "HARVEST MOON VINEYARD", classType: "Chardonnay", abv: 13.2, netContents: "750 mL", origin: "Sonoma County California", bottler: "Produced and bottled by Harvest Moon Vineyard Sonoma CA", description: "Fermented in stainless steel with partial malolactic conversion." },
-  { slug: "iron-gate", brand: "IRON GATE BREWING", classType: "Stout", abv: 7.4, netContents: "473 mL", origin: "Milwaukee Wisconsin", bottler: "Brewed and canned by Iron Gate Brewing Milwaukee WI", description: "Roasted barley and chocolate malt. Pours opaque with a tan head." },
-  { slug: "silver-birch", brand: "SILVER BIRCH", classType: "Vodka", abv: 40, netContents: "1 L", origin: "Burlington Vermont", bottler: "Distilled and bottled by Silver Birch Distilling Burlington VT", description: "Column distilled from winter wheat and filtered through birch charcoal." },
-  { slug: "cascade-ridge", brand: "CASCADE RIDGE", classType: "Pinot Noir", abv: 13.8, netContents: "750 mL", origin: "Willamette Valley Oregon", bottler: "Produced and bottled by Cascade Ridge Winery Dundee OR", description: "Hand harvested from volcanic soils and aged fourteen months in oak." },
-  { slug: "blackwater", brand: "BLACKWATER RESERVE", classType: "Straight Rye Whiskey", abv: 50.5, netContents: "750 mL", origin: "Lawrenceburg Indiana", bottler: "Distilled and bottled by Blackwater Reserve Lawrenceburg IN", description: "Ninety five percent rye mash bill aged six years in charred oak." },
-  { slug: "golden-fields", brand: "GOLDEN FIELDS", classType: "Pilsner", abv: 4.8, netContents: "355 mL", origin: "Fort Collins Colorado", bottler: "Brewed and bottled by Golden Fields Brewery Fort Collins CO", description: "Czech style pilsner lagered for six weeks with Saaz hops." },
-  { slug: "casa-verde", brand: "CASA VERDE", classType: "Tequila", abv: 40, netContents: "750 mL", origin: "Jalisco Mexico", bottler: "Produced in Mexico and imported by Casa Verde Imports Austin TX", description: "Made from one hundred percent blue weber agave and rested in oak." },
-  { slug: "north-shore", brand: "NORTH SHORE CELLARS", classType: "Riesling", abv: 11.5, netContents: "750 mL", origin: "Finger Lakes New York", bottler: "Produced and bottled by North Shore Cellars Geneva NY", description: "Off dry with bright acidity from cool climate slate soils." },
-  { slug: "saltmarsh", brand: "SALTMARSH", classType: "Rum", abv: 43, netContents: "700 mL", origin: "Charleston South Carolina", bottler: "Distilled and bottled by Saltmarsh Rum Works Charleston SC", description: "Pot distilled from blackstrap molasses and aged four years." },
-  { slug: "wild-ferment", brand: "WILD FERMENT", classType: "Sour Ale", abv: 5.6, netContents: "375 mL", origin: "Hood River Oregon", bottler: "Brewed and bottled by Wild Ferment Brewing Hood River OR", description: "Spontaneously fermented and aged in oak foeders for two years." },
-  { slug: "monteleone", brand: "MONTELEONE", classType: "Sparkling Wine", abv: 12, netContents: "750 mL", origin: "Sonoma County California", bottler: "Produced and bottled by Monteleone Sparkling Sonoma CA", description: "Traditional method with thirty months on the lees before disgorging." },
-  { slug: "kestrel-hill", brand: "KESTREL HILL", classType: "Scotch Whisky", abv: 46, netContents: "700 mL", origin: "Speyside Scotland", bottler: "Distilled in Scotland and imported by Kestrel Hill Imports Boston MA", description: "Single malt matured in sherry casks and bottled without chill filtering." },
+  { slug: "old-tom", type: "spirits", brand: "OLD TOM DISTILLERY", classType: "Kentucky Straight Bourbon Whiskey", abv: 45, netContents: "750 mL", origin: "Bardstown Kentucky", bottler: "Bottled by Old Tom Distillery Bardstown KY", description: "Distilled and bottled in small batches. Aged in new charred oak barrels." },
+  { slug: "stones-throw", type: "malt", brand: "STONE'S THROW", classType: "India Pale Ale", abv: 6.2, netContents: "355 mL", origin: "Asheville North Carolina", bottler: "Brewed and canned by Stone's Throw Brewing Asheville NC", description: "Dry hopped with Citra and Mosaic. Unfiltered and brewed in small batches." },
+  { slug: "riverbend", type: "wine", brand: "RIVERBEND CELLARS", classType: "Cabernet Sauvignon", abv: 14.5, netContents: "750 mL", origin: "Napa Valley California", bottler: "Produced and bottled by Riverbend Cellars Napa CA", description: "Estate grown and barrel aged eighteen months in French oak." },
+  { slug: "copper-kettle", type: "spirits", brand: "COPPER KETTLE", classType: "London Dry Gin", abv: 44, netContents: "750 mL", origin: "Portland Oregon", bottler: "Distilled and bottled by Copper Kettle Spirits Portland OR", description: "Botanicals of juniper coriander and angelica root in a copper pot still." },
+  { slug: "harvest-moon", type: "wine", brand: "HARVEST MOON VINEYARD", classType: "Chardonnay", abv: 13.2, netContents: "750 mL", origin: "Sonoma County California", bottler: "Produced and bottled by Harvest Moon Vineyard Sonoma CA", description: "Fermented in stainless steel with partial malolactic conversion." },
+  { slug: "iron-gate", type: "malt", brand: "IRON GATE BREWING", classType: "Stout", abv: 7.4, netContents: "473 mL", origin: "Milwaukee Wisconsin", bottler: "Brewed and canned by Iron Gate Brewing Milwaukee WI", description: "Roasted barley and chocolate malt. Pours opaque with a tan head." },
+  { slug: "silver-birch", type: "spirits", brand: "SILVER BIRCH", classType: "Vodka", abv: 40, netContents: "1 L", origin: "Burlington Vermont", bottler: "Distilled and bottled by Silver Birch Distilling Burlington VT", description: "Column distilled from winter wheat and filtered through birch charcoal." },
+  { slug: "cascade-ridge", type: "wine", brand: "CASCADE RIDGE", classType: "Pinot Noir", abv: 13.8, netContents: "750 mL", origin: "Willamette Valley Oregon", bottler: "Produced and bottled by Cascade Ridge Winery Dundee OR", description: "Hand harvested from volcanic soils and aged fourteen months in oak." },
+  { slug: "blackwater", type: "spirits", brand: "BLACKWATER RESERVE", classType: "Straight Rye Whiskey", abv: 50.5, netContents: "750 mL", origin: "Lawrenceburg Indiana", bottler: "Distilled and bottled by Blackwater Reserve Lawrenceburg IN", description: "Ninety five percent rye mash bill aged six years in charred oak." },
+  { slug: "golden-fields", type: "malt", brand: "GOLDEN FIELDS", classType: "Pilsner", abv: 4.8, netContents: "355 mL", origin: "Fort Collins Colorado", bottler: "Brewed and bottled by Golden Fields Brewery Fort Collins CO", description: "Czech style pilsner lagered for six weeks with Saaz hops." },
+  { slug: "casa-verde", type: "spirits", brand: "CASA VERDE", classType: "Tequila", abv: 40, netContents: "750 mL", origin: "Jalisco Mexico", bottler: "Produced in Mexico and imported by Casa Verde Imports Austin TX", description: "Made from one hundred percent blue weber agave and rested in oak." },
+  { slug: "north-shore", type: "wine", brand: "NORTH SHORE CELLARS", classType: "Riesling", abv: 11.5, netContents: "750 mL", origin: "Finger Lakes New York", bottler: "Produced and bottled by North Shore Cellars Geneva NY", description: "Off dry with bright acidity from cool climate slate soils." },
+  { slug: "saltmarsh", type: "spirits", brand: "SALTMARSH", classType: "Rum", abv: 43, netContents: "700 mL", origin: "Charleston South Carolina", bottler: "Distilled and bottled by Saltmarsh Rum Works Charleston SC", description: "Pot distilled from blackstrap molasses and aged four years." },
+  { slug: "wild-ferment", type: "malt", brand: "WILD FERMENT", classType: "Sour Ale", abv: 5.6, netContents: "375 mL", origin: "Hood River Oregon", bottler: "Brewed and bottled by Wild Ferment Brewing Hood River OR", description: "Spontaneously fermented and aged in oak foeders for two years." },
+  { slug: "monteleone", type: "wine", brand: "MONTELEONE", classType: "Sparkling Wine", abv: 12, netContents: "750 mL", origin: "Sonoma County California", bottler: "Produced and bottled by Monteleone Sparkling Sonoma CA", description: "Traditional method with thirty months on the lees before disgorging." },
+  { slug: "kestrel-hill", type: "spirits", brand: "KESTREL HILL", classType: "Scotch Whisky", abv: 46, netContents: "700 mL", origin: "Speyside Scotland", bottler: "Distilled in Scotland and imported by Kestrel Hill Imports Boston MA", description: "Single malt matured in sherry casks and bottled without chill filtering." },
 ];
 
 const bySlug = Object.fromEntries(PRODUCTS.map((p) => [p.slug, p]));
@@ -329,6 +329,15 @@ const ROWS = [
   { product: "golden-fields", warning: "ok", images: "front-only", perturbation: "none" },
   { product: "kestrel-hill", warning: "ok", images: "front-only", perturbation: "abvWrong" },
 
+  // --- Alcohol content that the label is allowed to leave off ---
+  // 27 CFR 7.63: a malt beverage need not state its ABV, and 27 CFR 4.34
+  // lets a 7-14% wine use the "table wine" designation instead. Both of
+  // these should come back clean, not as a discrepancy.
+  { product: "golden-fields", warning: "ok", images: "front-back", perturbation: "none", omitAbv: true },
+  { product: "iron-gate", warning: "ok", images: "front-back", perturbation: "none", omitAbv: true },
+  // A distilled spirit, by contrast, must state it (27 CFR 5.65).
+  { product: "silver-birch", warning: "ok", images: "front-back", perturbation: "none", omitAbv: true },
+
   // --- Compound cases: more than one thing wrong at once ---
   { product: "harvest-moon", warning: "omitted", images: "front-back", perturbation: "abvWrong" },
   { product: "saltmarsh", warning: "altered", images: "front-back", perturbation: "brandWrong" },
@@ -338,6 +347,23 @@ const ROWS = [
 
 // --- Expected outcome -----------------------------------------------------
 
+/**
+ * What an omitted alcohol content statement should produce. Spirits must state
+ * it (27 CFR 5.65). A malt beverage need not (27 CFR 7.63), and neither must a
+ * 7-14% wine designated "table wine" (27 CFR 4.34), so for those the absence
+ * is permitted rather than a finding.
+ */
+function abvExpectation(row, product) {
+  if (!row.omitAbv) return { status: "match", why: "" };
+  if (product.type === "spirits") {
+    return { status: "missing", why: "The label states no alcohol content, which distilled spirits are required to carry." };
+  }
+  return {
+    status: "not_required",
+    why: "The label states no alcohol content, which this beverage type is not required to carry.",
+  };
+}
+
 function warningExpectation(warning, images) {
   if (images === "front-only") return { status: "not_shown", why: "No back label supplied, so the warning cannot be judged. Reported as an evidence gap, not a violation." };
   if (warning === "omitted") return { status: "missing", why: "A back label was supplied and carries no warning at all. A genuine omission." };
@@ -346,7 +372,7 @@ function warningExpectation(warning, images) {
   return { status: "match", why: "" };
 }
 
-const RANK = { match: 0, review: 1, not_shown: 1, mismatch: 2, missing: 2 };
+const RANK = { match: 0, not_required: 0, review: 1, not_shown: 1, mismatch: 2, missing: 2 };
 
 function triageOf(statuses) {
   const worst = Math.max(...statuses.map((s) => RANK[s] ?? 0));
@@ -367,7 +393,7 @@ for (const [i, row] of ROWS.entries()) {
   if (!product) throw new Error(`Unknown product slug: ${row.product}`);
   const id = String(i + 1).padStart(2, "0");
   const stem = `${id}-${product.slug}`;
-  const labelProduct = { ...product, abvText: `${product.abv}% Alc./Vol.` };
+  const labelProduct = { ...product, abvText: `${product.abv}% Alc./Vol.`, omitAbv: Boolean(row.omitAbv) };
 
   const files = [];
 
@@ -398,10 +424,11 @@ for (const [i, row] of ROWS.entries()) {
   csvRows.push([files.join(";"), submitted.brand_name, submitted.class_type, String(submitted.abv_percent), submitted.net_contents]);
 
   const warn = warningExpectation(row.warning, row.images);
+  const abvExpected = abvExpectation(row, product);
   const fieldStatuses = {
     brandName: perturbation.expect.brandName ?? "match",
     classType: perturbation.expect.classType ?? "match",
-    abvPercent: perturbation.expect.abvPercent ?? "match",
+    abvPercent: row.omitAbv ? abvExpected.status : (perturbation.expect.abvPercent ?? "match"),
     netContents: perturbation.expect.netContents ?? "match",
     warningStatement: warn.status,
   };
@@ -413,7 +440,7 @@ for (const [i, row] of ROWS.entries()) {
     images: files.length,
     triage: triageOf(Object.values(fieldStatuses)),
     fields: fieldStatuses,
-    notes: [perturbation.note, warn.why].filter(Boolean),
+    notes: [perturbation.note, abvExpected.why, warn.why].filter(Boolean),
   });
 }
 

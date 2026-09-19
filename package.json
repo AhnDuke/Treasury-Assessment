@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
-    "gen:fixture": "node scripts/generate-test-labels.mjs"
+    "gen:fixture": "node scripts/generate-test-labels.mjs",
+    "bench:verify": "node --env-file-if-exists=.env.local scripts/benchmark-verification.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

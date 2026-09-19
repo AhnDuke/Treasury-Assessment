@@ -22,11 +22,13 @@ function toApplicationRecord(row: any): ApplicationRecord {
     classType: row.class_type,
     abvPercent: Number(row.abv_percent),
     netContents: row.net_contents,
+    beverageType: row.beverage_type ?? null,
     images: row.images ?? [],
     status: row.status,
     triageStatus: row.triage_status,
     fields: row.fields_json,
     errorMessage: row.error_message,
+    processingMs: row.processing_ms === null || row.processing_ms === undefined ? null : Number(row.processing_ms),
     decision: row.decision,
     decisionReason: row.decision_reason,
     decidedAt: row.decided_at,
@@ -44,8 +46,8 @@ export async function createApplication(
 ): Promise<ApplicationRecord> {
   const db = getSql();
   const rows = await db`
-    INSERT INTO applications (import_batch_id, brand_name, class_type, abv_percent, net_contents, images, status)
-    VALUES (${importBatchId}, ${data.brandName}, ${data.classType}, ${data.abvPercent}, ${data.netContents}, ${JSON.stringify(images)}, ${status})
+    INSERT INTO applications (import_batch_id, brand_name, class_type, abv_percent, net_contents, beverage_type, images, status)
+    VALUES (${importBatchId}, ${data.brandName}, ${data.classType}, ${data.abvPercent}, ${data.netContents}, ${data.beverageType ?? null}, ${JSON.stringify(images)}, ${status})
     RETURNING *
   `;
   return toApplicationRecord(rows[0]);
@@ -72,6 +74,8 @@ export async function updateApplicationResult(
     triageStatus?: TriageStatus | null;
     fields?: FieldResult[] | null;
     errorMessage?: string | null;
+    /** Milliseconds the check took. See the processing_ms column in db/schema.sql. */
+    processingMs?: number | null;
   }
 ): Promise<void> {
   const db = getSql();
@@ -81,6 +85,7 @@ export async function updateApplicationResult(
         triage_status = ${update.triageStatus ?? null},
         fields_json = ${update.fields ? JSON.stringify(update.fields) : null},
         error_message = ${update.errorMessage ?? null},
+        processing_ms = ${update.processingMs ?? null},
         updated_at = now()
     WHERE id = ${id}
   `;
@@ -165,7 +170,7 @@ export async function recordDecision(
           (
             SELECT jsonb_agg(field_entry->>'field')
             FROM jsonb_array_elements(fields_json) AS field_entry
-            WHERE field_entry->>'status' <> 'match' AND field_entry->>'status' <> 'not_shown'
+            WHERE field_entry->>'status' NOT IN ('match', 'not_shown', 'not_required')
           ),
           '[]'::jsonb
         ),

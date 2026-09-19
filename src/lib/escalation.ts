@@ -3,11 +3,11 @@ import { normalizeForComparison } from "./textMatch";
 import type { ExtractedLabelData, FieldResult } from "./types";
 
 export function fieldsNeedingSecondOpinion(fields: FieldResult[]): string[] {
-  // not_shown is excluded deliberately: a stronger model re-reading the same
+  // not_shown and not_required are excluded deliberately: a stronger model re-reading the same
   // images cannot find text that isn't in them, so escalating an evidence gap
   // buys nothing and costs a Sonnet call.
   return fields
-    .filter((f) => f.status !== "match" && f.status !== "not_shown")
+    .filter((f) => f.status !== "match" && f.status !== "not_shown" && f.status !== "not_required")
     .map((f) => f.field);
 }
 

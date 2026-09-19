@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorCard } from "./ResultsCard";
 import { FileDropzone } from "./FileDropzone";
-import { ApplicationFields, isApplicationFormFilled, type ApplicationFormState } from "./ApplicationFields";
+import { ApplicationFields, formBeverageType, isApplicationFormFilled, type ApplicationFormState } from "./ApplicationFields";
 import { acceptFiles, LabelPhotoPicker, type PendingImage } from "./LabelPhotoPicker";
 import { clearImportSession, loadImportSession, saveImportSession } from "@/lib/importSession";
 import { describeImageCountProblem, uploadLabelImages } from "@/lib/uploadImages";
@@ -22,7 +22,7 @@ interface WorkRow {
 
 interface ParsedResponse {
   importBatchId: string;
-  rows: { rowNumber: number; data: { brandName: string; classType: string; abvPercent: number; netContents: string }; suggestedFilenames: string[] }[];
+  rows: { rowNumber: number; data: { brandName: string; classType: string; abvPercent: number; netContents: string; beverageType?: string | null }; suggestedFilenames: string[] }[];
   errors: string[];
 }
 
@@ -134,6 +134,7 @@ export function GuidedImport({ onViewQueue }: { onViewQueue: () => void }) {
             classType: row.data.classType,
             abvPercent: String(row.data.abvPercent),
             netContents: row.data.netContents,
+            beverageType: row.data.beverageType ?? "",
           },
           suggestedFilenames: row.suggestedFilenames ?? [],
           images: [],
@@ -215,6 +216,7 @@ export function GuidedImport({ onViewQueue }: { onViewQueue: () => void }) {
           classType: row.form.classType,
           abvPercent: row.form.abvPercent,
           netContents: row.form.netContents,
+          beverageType: formBeverageType(row.form),
           images: uploaded,
           importBatchId: batchId,
         }),

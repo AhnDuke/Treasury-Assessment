@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ErrorCard } from "./ResultsCard";
 import { DECISION_META, FIELD_STATUS_META, TRIAGE_STATUS_META } from "@/lib/statusMeta";
+import { classifyProcessingTime, formatProcessingTime } from "@/lib/processingTime";
 import type { ApplicationRecord, FieldResult, ReviewDecision } from "@/lib/types";
 
 interface ReviewModalProps {
@@ -18,7 +19,9 @@ interface ReviewModalProps {
  *  rejection basis it suggests is "send a better photo", not the field's
  *  raw detail text. */
 function suggestedReason(fields: FieldResult[]): string {
-  const flagged = fields.filter((f) => f.status !== "match");
+  // not_required is excluded: the label is allowed to omit that field, so it
+  // is not a basis for rejecting anything.
+  const flagged = fields.filter((f) => f.status !== "match" && f.status !== "not_required");
   if (flagged.length === 0) return "";
   return flagged
     .map((f) =>
@@ -76,6 +79,14 @@ export function ReviewModal({ application, onClose, onDecided }: ReviewModalProp
           <h2 className="text-xl font-bold text-ink">{application.brandName}</h2>
           <p className="mt-1 text-sm text-ink-muted">
             Added {new Date(application.createdAt).toLocaleString()}
+            {typeof application.processingMs === "number" && (
+              <span className="ml-2">
+                &middot; checked in{" "}
+                <span className={classifyProcessingTime(application.processingMs) === "over" ? "text-flag" : undefined}>
+                  {formatProcessingTime(application.processingMs)}
+                </span>
+              </span>
+            )}
           </p>
         </div>
         <button

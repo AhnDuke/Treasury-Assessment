@@ -1,4 +1,5 @@
 import { STATUTORY_WARNING_TEXT } from "./warningStatement";
+import { abvRequirement, resolveBeverageType, type AbvRule } from "./beverageType";
 import { collapseWhitespace, normalizeForComparison, similarityRatio } from "./textMatch";
 import type { ApplicationData, ExtractedLabelData, FieldResult, TriageStatus } from "./types";
 
@@ -55,11 +56,32 @@ function compareTextField(field: string, label: string, expected: string, extrac
   };
 }
 
-function compareAbv(expected: number, extracted: number | null): FieldResult {
+function compareAbv(expected: number, extracted: number | null, rule: AbvRule): FieldResult {
   const label = "Alcohol Content (ABV)";
   const expectedStr = `${expected}%`;
   if (extracted === null) {
-    return { field: "abvPercent", label, expected: expectedStr, extracted: null, status: "missing", detail: "Not found on label." };
+    // Whether an absent alcohol content statement is a violation depends on
+    // the beverage type. Treating it as always required reported a rule that
+    // does not exist: an ordinary malt beverage need not state its ABV at all,
+    // so every compliant beer was being flagged. See abvRequirement.
+    if (rule.requirement === "optional") {
+      return {
+        field: "abvPercent",
+        label,
+        expected: expectedStr,
+        extracted: null,
+        status: "not_required",
+        detail: rule.reason,
+      };
+    }
+    return {
+      field: "abvPercent",
+      label,
+      expected: expectedStr,
+      extracted: null,
+      status: "missing",
+      detail: "Not found on the label, and this product is required to state it.",
+    };
   }
   const diff = Math.abs(expected - extracted);
   const extractedStr = `${extracted}%`;
@@ -200,10 +222,16 @@ function compareWarningStatement(extracted: string | null, backLabelVisible: boo
 }
 
 export function compareLabelToApplication(expected: ApplicationData, extracted: ExtractedLabelData): FieldResult[] {
+  // A declared beverage type wins over the inferred one, so an agent can
+  // correct a designation we do not recognise rather than being stuck with
+  // our guess about which rules apply.
+  const beverageType = resolveBeverageType(expected.classType, expected.beverageType);
+  const abvRule = abvRequirement(beverageType, expected.classType, expected.abvPercent);
+
   return [
     compareTextField("brandName", "Brand Name", expected.brandName, extracted.brandName),
     compareTextField("classType", "Class/Type Designation", expected.classType, extracted.classType),
-    compareAbv(expected.abvPercent, extracted.abvPercent),
+    compareAbv(expected.abvPercent, extracted.abvPercent, abvRule),
     compareNetContents(expected.netContents, extracted.netContents),
     compareWarningStatement(extracted.warningStatementText, extracted.backLabelVisible),
   ];
@@ -213,5 +241,7 @@ export function determineTriageStatus(fields: FieldResult[]): TriageStatus {
   if (fields.length === 0) return "discrepancy";
   if (fields.some((f) => f.status === "mismatch" || f.status === "missing")) return "discrepancy";
   if (fields.some((f) => f.status === "review" || f.status === "not_shown")) return "review";
+  // not_required falls through to "clean": the label is permitted to omit it,
+  // so there is nothing for a reviewer to resolve.
   return "clean";
 }

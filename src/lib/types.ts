@@ -1,8 +1,16 @@
+import type { BeverageType } from "./beverageType";
+
 export interface ApplicationData {
   brandName: string;
   classType: string;
   abvPercent: number;
   netContents: string;
+  /**
+   * Which body of TTB regulation the product falls under. Optional because it
+   * can usually be inferred from the class/type designation; declare it when
+   * the designation is free text we would not recognise.
+   */
+  beverageType?: BeverageType | null;
 }
 
 export interface ExtractedLabelData {
@@ -20,7 +28,7 @@ export interface ExtractedLabelData {
   backLabelVisible: boolean;
 }
 
-export type FieldStatus = "match" | "review" | "mismatch" | "missing" | "not_shown";
+export type FieldStatus = "match" | "review" | "mismatch" | "missing" | "not_shown" | "not_required";
 
 export interface SecondOpinion {
   model: string;
@@ -80,11 +88,17 @@ export interface ApplicationRecord {
   classType: string;
   abvPercent: number;
   netContents: string;
+  beverageType: BeverageType | null;
   images: LabelImage[];
   status: ApplicationStatus;
   triageStatus: TriageStatus | null;
   fields: FieldResult[] | null;
   errorMessage: string | null;
+  /**
+   * How long the automated check took, in milliseconds. Null while a row is
+   * still queued, and on rows that errored before a result existed.
+   */
+  processingMs: number | null;
   decision: ReviewDecision | null;
   decisionReason: string | null;
   decidedAt: string | null;

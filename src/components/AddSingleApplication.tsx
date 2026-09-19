@@ -5,6 +5,7 @@ import { ErrorCard, ResultsCard } from "./ResultsCard";
 import {
   ApplicationFields,
   emptyApplicationForm,
+  formBeverageType,
   isApplicationFormFilled,
   type ApplicationFormState,
 } from "./ApplicationFields";
@@ -65,6 +66,7 @@ export function AddSingleApplication({ onViewQueue }: { onViewQueue: () => void 
           classType: form.classType,
           abvPercent: form.abvPercent,
           netContents: form.netContents,
+          beverageType: formBeverageType(form),
           images: uploaded,
         }),
       });

@@ -141,3 +141,54 @@ describe("determineTriageStatus", () => {
     expect(determineTriageStatus(fields)).toBe("review");
   });
 });
+
+describe("alcohol content by beverage type", () => {
+  it("does not flag a compliant beer that states no alcohol content", () => {
+    // 27 CFR 7.63: a malt beverage need not state its ABV. Reporting its
+    // absence as a discrepancy invented a rule, and flagged every ordinary
+    // American beer.
+    const fields = compareLabelToApplication(
+      { brandName: "STONE'S THROW", classType: "India Pale Ale", abvPercent: 6.2, netContents: "355 mL" },
+      extracted({ brandName: "STONE'S THROW", classType: "India Pale Ale", abvPercent: null, netContents: "355 mL" })
+    );
+    const abv = fields.find((f) => f.field === "abvPercent")!;
+    expect(abv.status).toBe("not_required");
+    expect(determineTriageStatus(fields)).toBe("clean");
+  });
+
+  it("still flags distilled spirits that state no alcohol content", () => {
+    const fields = compareLabelToApplication(
+      { ...application, abvPercent: 45 },
+      extracted({ abvPercent: null })
+    );
+    const abv = fields.find((f) => f.field === "abvPercent")!;
+    expect(abv.status).toBe("missing");
+    expect(determineTriageStatus(fields)).toBe("discrepancy");
+  });
+
+  it("excuses a table wine between 7 and 14 percent", () => {
+    const fields = compareLabelToApplication(
+      { brandName: "RIVERBEND CELLARS", classType: "Table Wine", abvPercent: 12, netContents: "750 mL" },
+      extracted({ brandName: "RIVERBEND CELLARS", classType: "Table Wine", abvPercent: null, netContents: "750 mL" })
+    );
+    expect(fields.find((f) => f.field === "abvPercent")!.status).toBe("not_required");
+  });
+
+  it("still compares the numbers when the label does state an alcohol content", () => {
+    // The exemption is only about absence. A stated value that disagrees is
+    // still a discrepancy, whatever the beverage type.
+    const fields = compareLabelToApplication(
+      { brandName: "STONE'S THROW", classType: "India Pale Ale", abvPercent: 6.2, netContents: "355 mL" },
+      extracted({ brandName: "STONE'S THROW", classType: "India Pale Ale", abvPercent: 9.1, netContents: "355 mL" })
+    );
+    expect(fields.find((f) => f.field === "abvPercent")!.status).toBe("mismatch");
+  });
+
+  it("honours a declared beverage type over the class/type designation", () => {
+    const fields = compareLabelToApplication(
+      { brandName: "NEW THING", classType: "Hard Kombucha", abvPercent: 45, netContents: "750 mL", beverageType: "spirits" },
+      extracted({ brandName: "NEW THING", classType: "Hard Kombucha", abvPercent: null, netContents: "750 mL" })
+    );
+    expect(fields.find((f) => f.field === "abvPercent")!.status).toBe("missing");
+  });
+});

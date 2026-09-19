@@ -9,7 +9,7 @@ describe("rowToImportRow", () => {
     expect(result).toEqual({
       row: {
         rowNumber: 2,
-        data: { brandName: "OLD TOM DISTILLERY", classType: "Bourbon", abvPercent: 45, netContents: "750 mL" },
+        data: { brandName: "OLD TOM DISTILLERY", classType: "Bourbon", abvPercent: 45, netContents: "750 mL", beverageType: null },
         suggestedFilenames: [],
       },
     });
@@ -47,5 +47,17 @@ describe("rowToImportRow", () => {
   it("errors when abv_percent isn't a number", () => {
     const result = rowToImportRow({ ...base, abv_percent: "strong" }, 8);
     expect("error" in result && result.error).toContain("is not a number");
+  });
+
+  it("reads an explicit beverage_type column", () => {
+    const result = rowToImportRow({ ...base, beverage_type: "MALT" }, 9);
+    expect("row" in result && result.row.data.beverageType).toBe("malt");
+  });
+
+  it("ignores a beverage_type it doesn't recognise rather than guessing", () => {
+    // Left null so the class/type designation decides, instead of a typo
+    // silently picking the wrong set of TTB rules.
+    const result = rowToImportRow({ ...base, beverage_type: "seltzer" }, 10);
+    expect("row" in result && result.row.data.beverageType).toBeNull();
   });
 });

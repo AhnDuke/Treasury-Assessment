@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createApplication, listApplications, updateApplicationResult } from "@/lib/db";
 import { downloadLabelImage } from "@/lib/blob";
 import { validateImages } from "@/lib/imagePayload";
+import { isBeverageType } from "@/lib/beverageType";
 import type { ApplicationData, ApplicationStatus } from "@/lib/types";
 import { runVerification } from "@/lib/verify";
 
@@ -44,7 +45,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: imageResult.error }, { status: 400 });
   }
 
-  const data: ApplicationData = { brandName, classType, abvPercent, netContents };
+  // Optional: when absent the type is inferred from the class/type
+  // designation at comparison time.
+  const beverageType = isBeverageType(body.beverageType) ? body.beverageType : null;
+  const data: ApplicationData = { brandName, classType, abvPercent, netContents, beverageType };
 
   // A row submitted from a guided import carries its batch id. It is queued
   // and deliberately NOT checked yet - not inline, and not in the background
@@ -71,6 +75,10 @@ export async function POST(request: NextRequest) {
 
   let application = await createApplication(data, imageResult.images, "processing");
 
+  // This path is the one a person actually waits on, so what it costs is worth
+  // recording. Measured from fetching the photos back out of Blob, which is
+  // where the server's work starts.
+  const startedAt = Date.now();
   try {
     const encoded = await Promise.all(
       imageResult.images.map(async (image) => ({
@@ -79,12 +87,19 @@ export async function POST(request: NextRequest) {
       }))
     );
     const outcome = await runVerification(encoded, data);
-    await updateApplicationResult(application.id, { status: "done", triageStatus: outcome.triageStatus, fields: outcome.fields });
-    application = { ...application, status: "done", triageStatus: outcome.triageStatus, fields: outcome.fields };
+    const processingMs = Date.now() - startedAt;
+    await updateApplicationResult(application.id, {
+      status: "done",
+      triageStatus: outcome.triageStatus,
+      fields: outcome.fields,
+      processingMs,
+    });
+    application = { ...application, status: "done", triageStatus: outcome.triageStatus, fields: outcome.fields, processingMs };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error during verification.";
-    await updateApplicationResult(application.id, { status: "error", errorMessage });
-    application = { ...application, status: "error", errorMessage };
+    const processingMs = Date.now() - startedAt;
+    await updateApplicationResult(application.id, { status: "error", errorMessage, processingMs });
+    application = { ...application, status: "error", errorMessage, processingMs };
   }
 
   return NextResponse.json({ application });

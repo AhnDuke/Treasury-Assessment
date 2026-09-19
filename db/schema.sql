@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS applications (
     CHECK (triage_status IN ('clean', 'review', 'discrepancy')),
   fields_json JSONB,
   error_message TEXT,
+  beverage_type TEXT,
+  processing_ms INTEGER,
   decision TEXT
     CHECK (decision IN ('approved', 'rejected')),
   decision_reason TEXT,
@@ -118,3 +120,25 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS decision_flagged_fields JSONB;
 
 -- The review queue's tabs split on this, so it is the one new access path.
 CREATE INDEX IF NOT EXISTS applications_decision_idx ON applications (decision);
+
+-- How long the automated check took, in milliseconds: from fetching the label
+-- photos back out of Blob to having a comparison result. It does not include
+-- the browser's upload, or the time a row spends queued waiting its turn.
+--
+-- Recorded because the interviews set a hard bar on it. The scanning-vendor
+-- pilot failed at "30, 40 seconds sometimes to process a single label", and
+-- the stated threshold was results in about 5 seconds. A number nobody
+-- measures is a number nobody can be held to, so it is stored per application
+-- and shown in the review queue.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS processing_ms INTEGER;
+
+-- Which body of TTB regulation the product falls under: part 5 distilled
+-- spirits, part 4 wine, part 7 malt beverages. Nullable, because it is
+-- normally inferred from the class/type designation and only stored when an
+-- agent declares it explicitly for a designation we would not recognise.
+--
+-- It exists because the mandatory label information genuinely differs by type.
+-- Most sharply, a malt beverage is not required to state its alcohol content
+-- at all, so checking every product against the distilled-spirits rule
+-- reported a violation that does not exist.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS beverage_type TEXT;

@@ -12,6 +12,7 @@ export const FIELD_STATUS_META: Record<
   review: { glyph: "!", label: "Needs review", className: "text-flag bg-flag-bg border-flag-border", edgeClassName: "border-l-flag" },
   mismatch: { glyph: "✕", label: "Mismatch", className: "text-reject bg-reject-bg border-reject-border", edgeClassName: "border-l-reject" },
   missing: { glyph: "?", label: "Not found", className: "text-reject bg-reject-bg border-reject-border", edgeClassName: "border-l-reject" },
+  not_required: { glyph: "–", label: "Not required", className: "text-ink-muted bg-paper-muted border-border", edgeClassName: "border-l-border" },
   not_shown: { glyph: "–", label: "Not shown", className: "text-ink-muted bg-paper-muted border-border", edgeClassName: "border-l-border" },
 };
 

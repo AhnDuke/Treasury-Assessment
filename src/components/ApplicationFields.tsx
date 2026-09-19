@@ -2,6 +2,7 @@
 
 import type { ChangeEvent } from "react";
 import { ALL_CLASS_TYPES } from "@/lib/classTypes";
+import { BEVERAGE_TYPE_LABELS, inferBeverageType, isBeverageType, type BeverageType } from "@/lib/beverageType";
 
 /** The four application fields, as strings - ABV stays text until submit so a
  *  half-typed number doesn't fight the input. */
@@ -10,6 +11,8 @@ export interface ApplicationFormState {
   classType: string;
   abvPercent: string;
   netContents: string;
+  /** "" means let the class/type designation decide. See beverageType.ts. */
+  beverageType: string;
 }
 
 export const emptyApplicationForm: ApplicationFormState = {
@@ -17,7 +20,14 @@ export const emptyApplicationForm: ApplicationFormState = {
   classType: "",
   abvPercent: "",
   netContents: "",
+  beverageType: "",
 };
+
+/** The value to send to the API: an explicit choice, or null to let the
+ *  class/type designation decide. */
+export function formBeverageType(form: ApplicationFormState): BeverageType | null {
+  return isBeverageType(form.beverageType) ? form.beverageType : null;
+}
 
 export function isApplicationFormFilled(form: ApplicationFormState): boolean {
   return Boolean(form.brandName.trim() && form.classType.trim() && form.abvPercent.trim() && form.netContents.trim());
@@ -114,6 +124,37 @@ export function ApplicationFields({
           className={inputClass}
         />
       </label>
+
+      {/* Which TTB part applies, because the mandatory label information
+          differs between them. Usually inferable from the class/type
+          designation, so this only needs answering for a designation we
+          don't recognise; the label under the field says what was worked
+          out, so an agent can see whether it needs correcting. */}
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-sm font-medium text-ink">Beverage type</span>
+        <select
+          value={form.beverageType}
+          onChange={(event) => onChange({ ...form, beverageType: event.target.value })}
+          disabled={disabled}
+          className={inputClass}
+        >
+          <option value="">Work it out from the class/type</option>
+          <option value="spirits">{BEVERAGE_TYPE_LABELS.spirits}</option>
+          <option value="wine">{BEVERAGE_TYPE_LABELS.wine}</option>
+          <option value="malt">{BEVERAGE_TYPE_LABELS.malt}</option>
+        </select>
+        {!form.beverageType && (
+          <span className="mt-1 block text-sm text-ink-muted">{describeInferred(form.classType)}</span>
+        )}
+      </label>
     </div>
   );
+}
+
+function describeInferred(classType: string): string {
+  if (!classType.trim()) return "Enter a class/type and this will be worked out for you.";
+  const inferred = inferBeverageType(classType);
+  return inferred
+    ? `Read as ${BEVERAGE_TYPE_LABELS[inferred].toLowerCase()} from the class/type.`
+    : "This class/type isn't one we recognise. Choose a type so the right rules are applied, or the alcohol content check will be skipped.";
 }

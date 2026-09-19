@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { parseCsv } from "./csv";
+import { isBeverageType } from "./beverageType";
 import type { ApplicationData } from "./types";
 
 /** Parses a CSV or XLSX buffer into lowercase-keyed records, one per data row. */
@@ -73,6 +74,10 @@ export function rowToImportRow(row: Record<string, string>, rowNumber: number): 
   const classType = row.class_type?.trim();
   const abvPercentRaw = row.abv_percent?.trim();
   const netContents = row.net_contents?.trim();
+  // Optional. Left null when absent or unrecognised, so the class/type
+  // designation decides instead of a typo silently picking the wrong rules.
+  const declaredType = row.beverage_type?.trim().toLowerCase();
+  const beverageType = isBeverageType(declaredType) ? declaredType : null;
 
   if (!brandName || !classType || !abvPercentRaw || !netContents) {
     return { error: `Row ${rowNumber}: missing brand_name, class_type, abv_percent, or net_contents.` };
@@ -82,5 +87,5 @@ export function rowToImportRow(row: Record<string, string>, rowNumber: number): 
     return { error: `Row ${rowNumber}: abv_percent "${abvPercentRaw}" is not a number.` };
   }
 
-  return { row: { rowNumber, data: { brandName, classType, abvPercent, netContents }, suggestedFilenames } };
+  return { row: { rowNumber, data: { brandName, classType, abvPercent, netContents, beverageType }, suggestedFilenames } };
 }
