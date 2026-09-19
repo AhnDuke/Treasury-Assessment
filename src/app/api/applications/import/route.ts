@@ -1,35 +1,49 @@
 import { randomUUID } from "node:crypto";
 import { after, NextResponse } from "next/server";
-import { uploadLabelImage } from "@/lib/blob";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import { createApplication } from "@/lib/db";
-import { isAcceptedImageType, MAX_IMAGE_BYTES } from "@/lib/imageValidation";
+import { isAcceptedImageType } from "@/lib/imageValidation";
 import { drainPendingApplications } from "@/lib/processQueue";
 import { parseSpreadsheet, rowToImportRow } from "@/lib/spreadsheet";
-import type { ApplicationData } from "@/lib/types";
+import type { ApplicationData, LabelImage } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 // Sarah's interview: importers dump "200, 300 label applications" at once.
 // This caps well above that while still bounding an unauthenticated endpoint.
 const MAX_IMPORT_ROWS = 300;
-const UPLOAD_CONCURRENCY = 8;
+const INSERT_CONCURRENCY = 8;
 
 interface ValidatedRow {
-  filename: string;
   data: ApplicationData;
-  file: File;
+  images: LabelImage[];
 }
 
+/**
+ * Takes a spreadsheet plus the metadata for images the browser has already
+ * uploaded to Blob (see the upload-token route) — the image bytes never pass
+ * through here, which is what keeps a 300-row import under Vercel's 4.5MB
+ * request body cap.
+ */
 export async function POST(request: Request) {
   const formData = await request.formData();
   const spreadsheet = formData.get("spreadsheet");
-  const imageFiles = formData.getAll("images").filter((entry): entry is File => entry instanceof File);
+  const imagesJson = formData.get("images");
 
   if (!(spreadsheet instanceof File)) {
     return NextResponse.json({ error: "Missing spreadsheet file (CSV or XLSX)." }, { status: 400 });
   }
-  if (imageFiles.length === 0) {
+
+  let uploaded: LabelImage[];
+  try {
+    const parsed = JSON.parse(typeof imagesJson === "string" ? imagesJson : "[]");
+    uploaded = (Array.isArray(parsed) ? parsed : []).filter(
+      (image) => typeof image?.url === "string" && typeof image?.filename === "string" && isAcceptedImageType(image?.contentType)
+    );
+  } catch {
+    return NextResponse.json({ error: "Could not read the uploaded image list." }, { status: 400 });
+  }
+  if (uploaded.length === 0) {
     return NextResponse.json({ error: "No label images uploaded." }, { status: 400 });
   }
 
@@ -43,7 +57,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `This prototype supports up to ${MAX_IMPORT_ROWS} rows per import.` }, { status: 400 });
   }
 
-  const imagesByFilename = new Map(imageFiles.map((file) => [file.name.trim().toLowerCase(), file]));
+  const imagesByFilename = new Map(uploaded.map((image) => [image.filename.trim().toLowerCase(), image]));
   const errors: string[] = [];
   const validRows: ValidatedRow[] = [];
 
@@ -53,33 +67,29 @@ export async function POST(request: Request) {
       errors.push(result.error);
       return;
     }
-    const file = imagesByFilename.get(result.row.filename.toLowerCase());
-    if (!file) {
-      errors.push(`Row ${index + 2} (${result.row.filename}): no matching uploaded image.`);
+    const images: LabelImage[] = [];
+    const missing: string[] = [];
+    for (const filename of result.row.filenames) {
+      const image = imagesByFilename.get(filename.toLowerCase());
+      if (image) images.push(image);
+      else missing.push(filename);
+    }
+    if (missing.length > 0) {
+      errors.push(`Row ${index + 2}: no uploaded image matching ${missing.join(", ")}.`);
       return;
     }
-    if (!isAcceptedImageType(file.type)) {
-      errors.push(`Row ${index + 2} (${result.row.filename}): unsupported image type "${file.type || "unknown"}".`);
-      return;
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      errors.push(`Row ${index + 2} (${result.row.filename}): image exceeds 8MB.`);
-      return;
-    }
-    validRows.push({ filename: result.row.filename, data: result.row.data, file });
+    validRows.push({ data: result.row.data, images });
   });
 
   const importBatchId = randomUUID();
   let created = 0;
 
-  await mapWithConcurrency(validRows, UPLOAD_CONCURRENCY, async ({ filename, data, file }) => {
+  await mapWithConcurrency(validRows, INSERT_CONCURRENCY, async ({ data, images }) => {
     try {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const imageUrl = await uploadLabelImage(buffer, filename, file.type);
-      await createApplication(data, { url: imageUrl, filename, contentType: file.type }, "pending", importBatchId);
+      await createApplication(data, images, "pending", importBatchId);
       created += 1;
     } catch (err) {
-      errors.push(`${filename}: ${err instanceof Error ? err.message : "failed to import."}`);
+      errors.push(`${images[0]?.filename ?? "row"}: ${err instanceof Error ? err.message : "failed to import."}`);
     }
   });
 

@@ -27,7 +27,7 @@ function getClient(): Anthropic {
 // keys — they differ for the warning statement ("warningStatement" vs.
 // "warningStatementText"), so this mapping is the single source of truth
 // rather than duplicating the two naming schemes elsewhere.
-export const FIELD_TO_EXTRACTION_KEY: Record<string, keyof ExtractedLabelData> = {
+export const FIELD_TO_EXTRACTION_KEY: Record<string, Exclude<keyof ExtractedLabelData, "backLabelVisible">> = {
   brandName: "brandName",
   classType: "classType",
   abvPercent: "abvPercent",
@@ -56,6 +56,11 @@ const FIELD_PROPERTIES: Record<keyof ExtractedLabelData, { type: (string | null)
     type: ["string", "null"],
     description:
       "The full Government Warning statement, verbatim, including the 'GOVERNMENT WARNING:' header exactly as printed (preserve original casing).",
+  },
+  backLabelVisible: {
+    type: ["boolean"],
+    description:
+      "True if ANY supplied image shows a face of the packaging other than the primary front label - a back, reverse, side, or neck label - including a single image that shows front and back together. False if every image shows only the front.",
   },
 };
 
@@ -105,11 +110,15 @@ function toFriendlyErrorMessage(err: unknown): string {
   return "Could not read this label. Please try again with a clearer photo.";
 }
 
+export interface EncodedImage {
+  base64: string;
+  mediaType: AcceptedImageType;
+}
+
 async function runExtractionCall(
   model: string,
   tool: Anthropic.Tool,
-  imageBase64: string,
-  mediaType: AcceptedImageType,
+  images: EncodedImage[],
   instructionText: string
 ): Promise<Record<string, unknown>> {
   let response;
@@ -123,10 +132,14 @@ async function runExtractionCall(
         {
           role: "user",
           content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: imageBase64 },
-            },
+            // All photos go in one call rather than one call per image: a
+            // single request that sees front and back together can find a
+            // field that only appears on one of them, and costs less than
+            // re-sending the prompt per image.
+            ...images.map((image) => ({
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: image.mediaType, data: image.base64 },
+            })),
             { type: "text", text: instructionText },
           ],
         },
@@ -145,14 +158,11 @@ async function runExtractionCall(
   return toolUse.input as Record<string, unknown>;
 }
 
-export async function extractLabelData(imageBase64: string, mediaType: AcceptedImageType): Promise<ExtractedLabelData> {
-  const input = await runExtractionCall(
-    MODEL,
-    EXTRACTION_TOOL,
-    imageBase64,
-    mediaType,
-    "Read this alcohol beverage label and extract the requested fields exactly as printed. Preserve original casing and punctuation verbatim — this matters most for the Government Warning statement. If a field is not visible or not present on the label, use null for it rather than guessing."
-  );
+const SHARED_INSTRUCTIONS =
+  "These images are multiple photos of the same product's labels (typically front and back, sometimes a side or neck label). A given field may appear on only one of them, so check every image before concluding a field is absent. Extract each field exactly as printed, preserving original casing and punctuation verbatim. The Government Warning statement is usually small print on the back or side label — read it carefully and transcribe it word for word, including the 'GOVERNMENT WARNING:' header. Also report whether any image shows a face other than the front of the packaging, so that a field which is absent can be distinguished from a face nobody photographed. Only use null for a field that is genuinely not present on any image; do not use null merely because text is small or hard to read.";
+
+export async function extractLabelData(images: EncodedImage[]): Promise<ExtractedLabelData> {
+  const input = await runExtractionCall(MODEL, EXTRACTION_TOOL, images, SHARED_INSTRUCTIONS);
   return input as unknown as ExtractedLabelData;
 }
 
@@ -163,21 +173,19 @@ export async function extractLabelData(imageBase64: string, mediaType: AcceptedI
  * a genuinely independent second read, not a biased confirmation check.
  */
 export async function getSecondOpinion(
-  imageBase64: string,
-  mediaType: AcceptedImageType,
+  images: EncodedImage[],
   fieldKeys: string[]
 ): Promise<Partial<ExtractedLabelData>> {
   const extractionKeys = fieldKeys
     .map((key) => FIELD_TO_EXTRACTION_KEY[key])
-    .filter((key): key is keyof ExtractedLabelData => Boolean(key));
+    .filter((key): key is Exclude<keyof ExtractedLabelData, "backLabelVisible"> => Boolean(key));
   if (extractionKeys.length === 0) return {};
 
   const input = await runExtractionCall(
     SECOND_OPINION_MODEL,
     buildFocusedTool(extractionKeys),
-    imageBase64,
-    mediaType,
-    "Read this alcohol beverage label carefully and extract only the requested fields, exactly as printed. Preserve original casing and punctuation verbatim. If a field is not visible or not present, use null rather than guessing."
+    images,
+    `${SHARED_INSTRUCTIONS} Extract only the requested fields.`
   );
   return input as unknown as Partial<ExtractedLabelData>;
 }

@@ -17,6 +17,7 @@ function extracted(overrides: Partial<ExtractedLabelData> = {}): ExtractedLabelD
     abvPercent: 45,
     netContents: "750 mL",
     warningStatementText: STATUTORY_WARNING_TEXT,
+    backLabelVisible: true,
     ...overrides,
   };
 }
@@ -63,7 +64,18 @@ describe("compareLabelToApplication", () => {
     expect(fields.find((f) => f.field === "netContents")!.status).toBe("match");
   });
 
-  it("rejects a warning statement with altered wording", () => {
+  it("flags a near-perfect warning read as review, not a mismatch", () => {
+    // One dropped character is a transcription artifact, not a label defect —
+    // treating it as a violation is what produced false "incorrect warning"
+    // reports.
+    const typo = STATUTORY_WARNING_TEXT.replace("birth defects", "birth defect");
+    const fields = compareLabelToApplication(application, extracted({ warningStatementText: typo }));
+    const warning = fields.find((f) => f.field === "warningStatement")!;
+    expect(warning.status).toBe("review");
+    expect(warning.detail).toContain("transcription");
+  });
+
+  it("still rejects a warning statement with genuinely altered wording", () => {
     const fields = compareLabelToApplication(
       application,
       extracted({ warningStatementText: "GOVERNMENT WARNING: Drinking alcoholic beverages may cause health problems." })
@@ -82,5 +94,25 @@ describe("compareLabelToApplication", () => {
     const fields = compareLabelToApplication(application, extracted({ netContents: null }));
     expect(fields.find((f) => f.field === "netContents")!.status).toBe("missing");
     expect(determineOverallStatus(fields)).toBe("rejected");
+  });
+
+  it("reports a missing warning as an evidence gap when no back view was supplied", () => {
+    // A single front photo genuinely doesn't contain the warning. Calling
+    // that a violation is what manufactured false "missing warning" reports.
+    const fields = compareLabelToApplication(
+      application,
+      extracted({ warningStatementText: null, backLabelVisible: false })
+    );
+    const warning = fields.find((f) => f.field === "warningStatement")!;
+    expect(warning.status).toBe("not_shown");
+    expect(warning.detail).toContain("back");
+  });
+
+  it("reports a missing warning as a genuine omission when a back view was supplied", () => {
+    const fields = compareLabelToApplication(
+      application,
+      extracted({ warningStatementText: null, backLabelVisible: true })
+    );
+    expect(fields.find((f) => f.field === "warningStatement")!.status).toBe("missing");
   });
 });

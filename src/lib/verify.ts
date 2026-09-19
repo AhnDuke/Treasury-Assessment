@@ -1,7 +1,7 @@
-import { extractLabelData, getSecondOpinion } from "./anthropic";
+import { extractLabelData, getSecondOpinion, type EncodedImage } from "./anthropic";
 import { compareLabelToApplication, determineOverallStatus } from "./comparison";
 import { applySecondOpinions, fieldsNeedingSecondOpinion } from "./escalation";
-import type { AcceptedImageType, ApplicationData, VerificationOutcome } from "./types";
+import type { ApplicationData, VerificationOutcome } from "./types";
 
 /**
  * The extract -> compare -> escalate pipeline, with no persistence baked in
@@ -10,18 +10,14 @@ import type { AcceptedImageType, ApplicationData, VerificationOutcome } from "./
  * failure rather than swallowing it, so callers can record it as their own
  * `error` status instead of a silent default.
  */
-export async function runVerification(
-  imageBase64: string,
-  mediaType: AcceptedImageType,
-  expected: ApplicationData
-): Promise<VerificationOutcome> {
-  const extracted = await extractLabelData(imageBase64, mediaType);
+export async function runVerification(images: EncodedImage[], expected: ApplicationData): Promise<VerificationOutcome> {
+  const extracted = await extractLabelData(images);
   let fields = compareLabelToApplication(expected, extracted);
 
   const flagged = fieldsNeedingSecondOpinion(fields);
   if (flagged.length > 0) {
     try {
-      const secondOpinions = await getSecondOpinion(imageBase64, mediaType, flagged);
+      const secondOpinions = await getSecondOpinion(images, flagged);
       fields = applySecondOpinions(fields, secondOpinions);
     } catch {
       // Escalation is a quality add-on, not a hard dependency: if the

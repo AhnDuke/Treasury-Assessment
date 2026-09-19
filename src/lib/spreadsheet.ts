@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { parseCsv } from "./csv";
-import type { ApplicationData } from "./types";
+import { MAX_IMAGES_PER_APPLICATION, MIN_IMAGES_PER_APPLICATION, type ApplicationData } from "./types";
 
 /** Parses a CSV or XLSX buffer into lowercase-keyed records, one per data row. */
 export async function parseSpreadsheet(buffer: Buffer, filename: string): Promise<Record<string, string>[]> {
@@ -39,7 +39,7 @@ export async function parseSpreadsheet(buffer: Buffer, filename: string): Promis
 }
 
 export interface ImportRow {
-  filename: string;
+  filenames: string[];
   data: ApplicationData;
 }
 
@@ -49,20 +49,34 @@ export interface ImportRow {
  * from CSV or XLSX) so it's unit-testable without a real file.
  */
 export function rowToImportRow(row: Record<string, string>, rowIndex: number): { row: ImportRow } | { error: string } {
-  const filename = row.filename?.trim();
+  // `filenames` is semicolon-separated (a comma would collide with CSV
+  // delimiters). The legacy single `filename` column still works.
+  const rawFilenames = row.filenames?.trim() || row.filename?.trim() || "";
+  const filenames = rawFilenames
+    .split(";")
+    .map((name) => name.trim())
+    .filter(Boolean);
+
   const brandName = row.brand_name?.trim();
   const classType = row.class_type?.trim();
   const abvPercentRaw = row.abv_percent?.trim();
   const netContents = row.net_contents?.trim();
 
-  if (!filename) return { error: `Row ${rowIndex}: missing "filename".` };
+  if (filenames.length === 0) return { error: `Row ${rowIndex}: missing "filenames".` };
+  const label = filenames.join(", ");
+  if (filenames.length < MIN_IMAGES_PER_APPLICATION) {
+    return { error: `Row ${rowIndex} (${label}): needs at least ${MIN_IMAGES_PER_APPLICATION} image(s), separated by ";".` };
+  }
+  if (filenames.length > MAX_IMAGES_PER_APPLICATION) {
+    return { error: `Row ${rowIndex} (${label}): more than ${MAX_IMAGES_PER_APPLICATION} images.` };
+  }
   if (!brandName || !classType || !abvPercentRaw || !netContents) {
-    return { error: `Row ${rowIndex} (${filename}): missing brand_name, class_type, abv_percent, or net_contents.` };
+    return { error: `Row ${rowIndex} (${label}): missing brand_name, class_type, abv_percent, or net_contents.` };
   }
   const abvPercent = parseFloat(abvPercentRaw);
   if (Number.isNaN(abvPercent)) {
-    return { error: `Row ${rowIndex} (${filename}): abv_percent "${abvPercentRaw}" is not a number.` };
+    return { error: `Row ${rowIndex} (${label}): abv_percent "${abvPercentRaw}" is not a number.` };
   }
 
-  return { row: { filename, data: { brandName, classType, abvPercent, netContents } } };
+  return { row: { filenames, data: { brandName, classType, abvPercent, netContents } } };
 }

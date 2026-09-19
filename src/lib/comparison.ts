@@ -11,6 +11,12 @@ const FUZZY_MATCH_THRESHOLD = 0.85;
 const ABV_TOLERANCE_PERCENT = 0.3;
 const NET_CONTENTS_TOLERANCE_RATIO = 0.01;
 
+// Above this similarity, a non-exact warning statement is treated as a
+// transcription artifact needing human confirmation rather than a wording
+// violation. The statutory text is ~250 characters, so this still only
+// tolerates a few characters of drift.
+const WARNING_TRANSCRIPTION_THRESHOLD = 0.97;
+
 const OZ_TO_ML = 29.5735;
 const UNIT_TO_ML: Array<{ pattern: RegExp; toMl: number }> = [
   { pattern: /^fl ?oz$/, toMl: OZ_TO_ML },
@@ -118,11 +124,34 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
   };
 }
 
-function compareWarningStatement(extracted: string | null): FieldResult {
+function compareWarningStatement(extracted: string | null, backLabelVisible: boolean): FieldResult {
   const label = "Government Warning Statement";
   const expected = STATUTORY_WARNING_TEXT;
   if (!extracted || !extracted.trim()) {
-    return { field: "warningStatement", label, expected, extracted: null, status: "missing", detail: "No warning statement found on label." };
+    // Two different findings share one symptom. The warning is printed on the
+    // back or side in nearly every case, so "not found" means one thing when
+    // we were shown that side and something else entirely when we weren't.
+    // Reporting an evidence gap as a violation is what produced the false
+    // "missing warning" results this check was rewritten to fix.
+    if (!backLabelVisible) {
+      return {
+        field: "warningStatement",
+        label,
+        expected,
+        extracted: null,
+        status: "not_shown",
+        detail:
+          "No photo shows the back or side of the packaging, where this statement is almost always printed. This is not a finding against the label — request a photo of the back before deciding.",
+      };
+    }
+    return {
+      field: "warningStatement",
+      label,
+      expected,
+      extracted: null,
+      status: "missing",
+      detail: "A back or side view was supplied and carries no warning statement — this is a genuine omission.",
+    };
   }
 
   const textMatches = collapseWhitespace(expected).toLowerCase() === collapseWhitespace(extracted).toLowerCase();
@@ -130,13 +159,30 @@ function compareWarningStatement(extracted: string | null): FieldResult {
   const headerIsAllCaps = headerMatch ? headerMatch[0] === headerMatch[0].toUpperCase() : false;
 
   if (!textMatches) {
+    // A near-perfect read almost certainly means the label is correct and the
+    // transcription slipped a character — a measurement error, not a label
+    // defect. Treating those as outright mismatches is what produced false
+    // "incorrect warning" reports. Strictness is preserved: anything short of
+    // essentially identical still goes to a human, it just isn't pre-judged
+    // as a violation.
+    const similarity = similarityRatio(expected, extracted);
+    if (similarity >= WARNING_TRANSCRIPTION_THRESHOLD) {
+      return {
+        field: "warningStatement",
+        label,
+        expected,
+        extracted,
+        status: "review",
+        detail: `Wording appears correct (${Math.round(similarity * 100)}% identical) but the transcription differed slightly — likely a reading artifact rather than a label defect. Confirm visually.`,
+      };
+    }
     return {
       field: "warningStatement",
       label,
       expected,
       extracted,
       status: "mismatch",
-      detail: "Wording does not match the required statutory text exactly (27 CFR 16.21).",
+      detail: `Wording does not match the required statutory text (27 CFR 16.21) — only ${Math.round(similarity * 100)}% identical.`,
     };
   }
   if (!headerIsAllCaps) {
@@ -159,13 +205,13 @@ export function compareLabelToApplication(expected: ApplicationData, extracted: 
     compareTextField("classType", "Class/Type Designation", expected.classType, extracted.classType),
     compareAbv(expected.abvPercent, extracted.abvPercent),
     compareNetContents(expected.netContents, extracted.netContents),
-    compareWarningStatement(extracted.warningStatementText),
+    compareWarningStatement(extracted.warningStatementText, extracted.backLabelVisible),
   ];
 }
 
 export function determineOverallStatus(fields: FieldResult[]): OverallStatus {
   if (fields.length === 0) return "rejected";
   if (fields.some((f) => f.status === "mismatch" || f.status === "missing")) return "rejected";
-  if (fields.some((f) => f.status === "review")) return "flagged";
+  if (fields.some((f) => f.status === "review" || f.status === "not_shown")) return "flagged";
   return "approved";
 }

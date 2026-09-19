@@ -2,8 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { FileDropzone } from "./FileDropzone";
+import { describeFileProblem, uploadLabelImages } from "@/lib/uploadImages";
+import { MAX_IMAGES_PER_APPLICATION } from "@/lib/types";
 
-type Status = "idle" | "loading" | "done" | "error";
+type Status = "idle" | "uploading" | "loading" | "done" | "error";
 
 interface ImportSummary {
   importBatchId: string;
@@ -27,15 +29,28 @@ export function ImportApplications({ onViewQueue }: { onViewQueue: () => void })
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!spreadsheet || imageFiles.length === 0) return;
-    setStatus("loading");
     setErrorMessage(null);
     setSummary(null);
 
-    const body = new FormData();
-    body.append("spreadsheet", spreadsheet);
-    imageFiles.forEach((file) => body.append("images", file));
+    const rejected = imageFiles.map(describeFileProblem).filter((problem): problem is string => Boolean(problem));
+    if (rejected.length > 0) {
+      setErrorMessage(rejected.join(" "));
+      setStatus("error");
+      return;
+    }
 
     try {
+      // Every image goes browser -> Blob first; the request below carries
+      // only the spreadsheet and the resulting URLs, which is what keeps a
+      // large import under Vercel's 4.5MB request body cap.
+      setStatus("uploading");
+      const uploaded = await uploadLabelImages(imageFiles);
+
+      setStatus("loading");
+      const body = new FormData();
+      body.append("spreadsheet", spreadsheet);
+      body.append("images", JSON.stringify(uploaded));
+
       const response = await fetch("/api/applications/import", { method: "POST", body });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Import failed.");
@@ -51,9 +66,12 @@ export function ImportApplications({ onViewQueue }: { onViewQueue: () => void })
     <div className="space-y-8">
       <div className="border border-border bg-paper-muted p-4 text-sm text-ink-muted">
         <p>
-          Upload a spreadsheet (CSV or XLSX) of application data alongside the label images. Each image&apos;s filename must
-          match the <code className="bg-paper px-1 py-0.5">filename</code> column. Imported applications are queued and
-          processed in the background — check the review queue for progress.
+          Upload a spreadsheet (CSV or XLSX) of application data alongside the label images. Each row&apos;s{" "}
+          <code className="bg-paper px-1 py-0.5">filenames</code> column lists that application&apos;s photos separated by
+          semicolons — up to {MAX_IMAGES_PER_APPLICATION}, e.g.{" "}
+          <code className="bg-paper px-1 py-0.5">front.jpg;back.jpg</code>. Include the back label if the Government Warning isn&apos;t
+          visible on the front. Imported applications are queued and processed in
+          the background — check the review queue for progress.
         </p>
         <a href="/sample-batch-template.csv" download className="mt-2 inline-block font-medium text-seal hover:underline">
           Download a template
@@ -111,7 +129,11 @@ export function ImportApplications({ onViewQueue }: { onViewQueue: () => void })
           disabled={!canSubmit}
           className="w-full bg-seal px-4 py-3 text-lg font-semibold text-paper transition-colors hover:bg-seal-dark disabled:cursor-not-allowed disabled:bg-border disabled:text-ink-muted"
         >
-          {status === "loading" ? `Importing ${imageFiles.length} label${imageFiles.length === 1 ? "" : "s"}…` : "Import applications"}
+          {status === "uploading"
+            ? `Uploading ${imageFiles.length} photo${imageFiles.length === 1 ? "" : "s"}…`
+            : status === "loading"
+              ? "Queuing applications…"
+              : "Import applications"}
         </button>
 
         {errorMessage && <p className="border-l-4 border-reject bg-reject-bg p-3 text-sm text-reject">{errorMessage}</p>}

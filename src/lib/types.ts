@@ -11,9 +11,16 @@ export interface ExtractedLabelData {
   abvPercent: number | null;
   netContents: string | null;
   warningStatementText: string | null;
+  /**
+   * Whether any supplied image shows a face other than the front. Drives the
+   * distinction between "the label is missing the warning" (a violation) and
+   * "nobody photographed the side it's printed on" (an evidence gap) — see
+   * compareWarningStatement.
+   */
+  backLabelVisible: boolean;
 }
 
-export type FieldStatus = "match" | "review" | "mismatch" | "missing";
+export type FieldStatus = "match" | "review" | "mismatch" | "missing" | "not_shown";
 
 export interface SecondOpinion {
   model: string;
@@ -43,6 +50,20 @@ export interface VerificationOutcome {
 
 export type ApplicationStatus = "pending" | "processing" | "done" | "cancelled" | "error";
 
+/** One uploaded label photo. Applications carry several (front, back, ...). */
+export interface LabelImage {
+  url: string;
+  filename: string;
+  contentType: AcceptedImageType;
+}
+
+// One image is allowed because an applicant may supply a single composite
+// photo showing front and back together. A front-only photo is caught by the
+// evidence-gap check in comparison.ts, not by a count rule — the count never
+// told us what was actually photographed.
+export const MIN_IMAGES_PER_APPLICATION = 1;
+export const MAX_IMAGES_PER_APPLICATION = 3;
+
 /** A persisted application row (Neon) - the unit the review queue works on. */
 export interface ApplicationRecord {
   id: string;
@@ -51,9 +72,7 @@ export interface ApplicationRecord {
   classType: string;
   abvPercent: number;
   netContents: string;
-  imageUrl: string;
-  imageFilename: string;
-  imageContentType: AcceptedImageType;
+  images: LabelImage[];
   status: ApplicationStatus;
   overallStatus: OverallStatus | null;
   fields: FieldResult[] | null;

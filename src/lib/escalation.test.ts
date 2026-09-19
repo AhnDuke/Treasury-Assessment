@@ -23,6 +23,16 @@ describe("fieldsNeedingSecondOpinion", () => {
     ];
     expect(fieldsNeedingSecondOpinion(fields)).toEqual(["classType", "abvPercent", "netContents"]);
   });
+
+  it("doesn't spend a second-opinion call on a field nobody photographed", () => {
+    // A stronger model re-reading the same images can't find text that isn't
+    // in them — escalating an evidence gap buys nothing and costs a call.
+    const fields = [
+      field({ field: "warningStatement", status: "not_shown" }),
+      field({ field: "classType", status: "review" }),
+    ];
+    expect(fieldsNeedingSecondOpinion(fields)).toEqual(["classType"]);
+  });
 });
 
 describe("applySecondOpinions", () => {
