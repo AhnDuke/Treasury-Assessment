@@ -147,6 +147,11 @@ export function ReviewQueue() {
     )
     .sort(SORTS.find((s) => s.key === sort)!.compare);
 
+  // Looked up fresh on every render rather than trusted from when the modal
+  // was opened: this queue has no auth and is shared, so another reviewer
+  // (or the 5s poll) can remove the open row out from under this session.
+  const openApplication = openId ? (applications.find((a) => a.id === openId) ?? null) : null;
+
   return (
     <div className="space-y-6">
       {batchGroups.map((batch) => (
@@ -294,9 +299,9 @@ export function ReviewQueue() {
         </div>
       )}
 
-      {openId && (
+      {openApplication && (
         <ReviewModal
-          application={applications.find((a) => a.id === openId)!}
+          application={openApplication}
           onClose={() => setOpenId(null)}
           onDecided={(updated) => {
             setApplications((prev) => (prev ?? []).map((a) => (a.id === updated.id ? updated : a)));
