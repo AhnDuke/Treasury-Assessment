@@ -45,6 +45,9 @@ export interface FieldResult {
  */
 export type TriageStatus = "clean" | "review" | "discrepancy";
 
+/** A person's sign-off. Only ever set by an agent, never by the automated check. */
+export type ReviewDecision = "approved" | "rejected";
+
 export type AcceptedImageType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
 /** Result of the extract -> compare -> escalate pipeline, before persistence. */
@@ -82,6 +85,11 @@ export interface ApplicationRecord {
   triageStatus: TriageStatus | null;
   fields: FieldResult[] | null;
   errorMessage: string | null;
+  decision: ReviewDecision | null;
+  decisionReason: string | null;
+  decidedAt: string | null;
+  /** Which fields the automated check had flagged when the agent signed off. */
+  decisionFlaggedFields: string[] | null;
   createdAt: string;
   updatedAt: string;
 }

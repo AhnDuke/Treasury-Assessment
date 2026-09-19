@@ -1,4 +1,4 @@
-import type { FieldStatus, TriageStatus } from "./types";
+import type { FieldStatus, ReviewDecision, TriageStatus } from "./types";
 
 // Plain typographic glyphs, not emoji: colored via our own palette instead
 // of the platform's built-in emoji rendering, so a status mark looks the
@@ -40,4 +40,9 @@ export const TRIAGE_STATUS_META: Record<
     className: "text-reject bg-reject-bg border-reject-border",
     edgeClassName: "border-l-reject",
   },
+};
+
+export const DECISION_META: Record<ReviewDecision, { glyph: string; label: string; className: string }> = {
+  approved: { glyph: "✓", label: "Approved", className: "text-verified bg-verified-bg border-verified-border" },
+  rejected: { glyph: "✕", label: "Rejected", className: "text-reject bg-reject-bg border-reject-border" },
 };

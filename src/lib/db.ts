@@ -1,5 +1,5 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import type { ApplicationData, ApplicationRecord, ApplicationStatus, BatchProgress, FieldResult, LabelImage, TriageStatus } from "./types";
+import type { ApplicationData, ApplicationRecord, ApplicationStatus, BatchProgress, FieldResult, LabelImage, ReviewDecision, TriageStatus } from "./types";
 
 let sql: NeonQueryFunction<false, false> | null = null;
 
@@ -27,6 +27,10 @@ function toApplicationRecord(row: any): ApplicationRecord {
     triageStatus: row.triage_status,
     fields: row.fields_json,
     errorMessage: row.error_message,
+    decision: row.decision,
+    decisionReason: row.decision_reason,
+    decidedAt: row.decided_at,
+    decisionFlaggedFields: row.decision_flagged_fields,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -137,5 +141,37 @@ export async function getBatchProgress(importBatchId: string): Promise<BatchProg
 export async function deleteApplication(id: string): Promise<ApplicationRecord | null> {
   const db = getSql();
   const rows = await db`DELETE FROM applications WHERE id = ${id} RETURNING *`;
+  return rows[0] ? toApplicationRecord(rows[0]) : null;
+}
+
+/**
+ * Records an agent's sign-off. The flagged-field snapshot is computed here
+ * from the row's own stored results rather than taken from the client, so it
+ * reflects what the agent was actually shown and can't be spoofed by a
+ * caller. Returns null if no such application exists.
+ */
+export async function recordDecision(
+  id: string,
+  decision: ReviewDecision,
+  reason: string | null
+): Promise<ApplicationRecord | null> {
+  const db = getSql();
+  const rows = await db`
+    UPDATE applications
+    SET decision = ${decision},
+        decision_reason = ${reason},
+        decided_at = now(),
+        decision_flagged_fields = COALESCE(
+          (
+            SELECT jsonb_agg(field_entry->>'field')
+            FROM jsonb_array_elements(fields_json) AS field_entry
+            WHERE field_entry->>'status' <> 'match'
+          ),
+          '[]'::jsonb
+        ),
+        updated_at = now()
+    WHERE id = ${id}
+    RETURNING *
+  `;
   return rows[0] ? toApplicationRecord(rows[0]) : null;
 }
