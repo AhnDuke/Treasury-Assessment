@@ -29,12 +29,17 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: HandleUploadBody;
+  let parsed: unknown;
   try {
-    body = (await request.json()) as HandleUploadBody;
+    parsed = await request.json();
   } catch {
     return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
   }
+
+  if (typeof parsed !== "object" || parsed === null) {
+    return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
+  }
+  const body = parsed as HandleUploadBody;
 
   try {
     const result = await handleUpload({
@@ -54,6 +59,6 @@ export async function POST(request: Request) {
   } catch (err) {
     // Surfaced in the Vercel function logs — the client only sees the message.
     console.error("Blob upload token generation failed:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Upload failed." }, { status: 400 });
+    return NextResponse.json({ error: "Could not start the upload. Please try again." }, { status: 400 });
   }
 }
