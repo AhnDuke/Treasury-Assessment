@@ -165,7 +165,7 @@ export async function recordDecision(
           (
             SELECT jsonb_agg(field_entry->>'field')
             FROM jsonb_array_elements(fields_json) AS field_entry
-            WHERE field_entry->>'status' <> 'match'
+            WHERE field_entry->>'status' <> 'match' AND field_entry->>'status' <> 'not_shown'
           ),
           '[]'::jsonb
         ),

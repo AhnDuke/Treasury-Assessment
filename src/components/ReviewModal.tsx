@@ -12,11 +12,21 @@ interface ReviewModalProps {
 }
 
 /** Pre-fills the rejection box from what the automated check flagged, so the
- *  common rejection is a confirmation rather than an essay. */
+ *  common rejection is a confirmation rather than an essay. A `not_shown`
+ *  field gets its own line rather than the generic one: it's an evidence gap
+ *  ("nobody photographed this"), not a finding against the label, so the
+ *  rejection basis it suggests is "send a better photo", not the field's
+ *  raw detail text. */
 function suggestedReason(fields: FieldResult[]): string {
   const flagged = fields.filter((f) => f.status !== "match");
   if (flagged.length === 0) return "";
-  return flagged.map((f) => `${f.label}: ${f.detail ?? "does not match the application."}`).join("\n");
+  return flagged
+    .map((f) =>
+      f.status === "not_shown"
+        ? `${f.label}: not visible in the photos supplied — a clearer photo is needed.`
+        : `${f.label}: ${f.detail ?? "does not match the application."}`
+    )
+    .join("\n");
 }
 
 export function ReviewModal({ application, onClose, onDecided }: ReviewModalProps) {
