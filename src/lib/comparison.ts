@@ -124,11 +124,34 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
   };
 }
 
-function compareWarningStatement(extracted: string | null): FieldResult {
+function compareWarningStatement(extracted: string | null, backLabelVisible: boolean): FieldResult {
   const label = "Government Warning Statement";
   const expected = STATUTORY_WARNING_TEXT;
   if (!extracted || !extracted.trim()) {
-    return { field: "warningStatement", label, expected, extracted: null, status: "missing", detail: "No warning statement found on label." };
+    // Two different findings share one symptom. The warning is printed on the
+    // back or side in nearly every case, so "not found" means one thing when
+    // we were shown that side and something else entirely when we weren't.
+    // Reporting an evidence gap as a violation is what produced the false
+    // "missing warning" results this check was rewritten to fix.
+    if (!backLabelVisible) {
+      return {
+        field: "warningStatement",
+        label,
+        expected,
+        extracted: null,
+        status: "not_shown",
+        detail:
+          "No photo shows the back or side of the packaging, where this statement is almost always printed. This is not a finding against the label — request a photo of the back before deciding.",
+      };
+    }
+    return {
+      field: "warningStatement",
+      label,
+      expected,
+      extracted: null,
+      status: "missing",
+      detail: "A back or side view was supplied and carries no warning statement — this is a genuine omission.",
+    };
   }
 
   const textMatches = collapseWhitespace(expected).toLowerCase() === collapseWhitespace(extracted).toLowerCase();
@@ -182,13 +205,13 @@ export function compareLabelToApplication(expected: ApplicationData, extracted: 
     compareTextField("classType", "Class/Type Designation", expected.classType, extracted.classType),
     compareAbv(expected.abvPercent, extracted.abvPercent),
     compareNetContents(expected.netContents, extracted.netContents),
-    compareWarningStatement(extracted.warningStatementText),
+    compareWarningStatement(extracted.warningStatementText, extracted.backLabelVisible),
   ];
 }
 
 export function determineOverallStatus(fields: FieldResult[]): OverallStatus {
   if (fields.length === 0) return "rejected";
   if (fields.some((f) => f.status === "mismatch" || f.status === "missing")) return "rejected";
-  if (fields.some((f) => f.status === "review")) return "flagged";
+  if (fields.some((f) => f.status === "review" || f.status === "not_shown")) return "flagged";
   return "approved";
 }

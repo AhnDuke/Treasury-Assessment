@@ -3,7 +3,12 @@ import { normalizeForComparison } from "./textMatch";
 import type { ExtractedLabelData, FieldResult } from "./types";
 
 export function fieldsNeedingSecondOpinion(fields: FieldResult[]): string[] {
-  return fields.filter((f) => f.status !== "match").map((f) => f.field);
+  // not_shown is excluded deliberately: a stronger model re-reading the same
+  // images cannot find text that isn't in them, so escalating an evidence gap
+  // buys nothing and costs a Sonnet call.
+  return fields
+    .filter((f) => f.status !== "match" && f.status !== "not_shown")
+    .map((f) => f.field);
 }
 
 function parseNumericField(value: string | number | null): number | null {

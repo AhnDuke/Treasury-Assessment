@@ -11,9 +11,16 @@ export interface ExtractedLabelData {
   abvPercent: number | null;
   netContents: string | null;
   warningStatementText: string | null;
+  /**
+   * Whether any supplied image shows a face other than the front. Drives the
+   * distinction between "the label is missing the warning" (a violation) and
+   * "nobody photographed the side it's printed on" (an evidence gap) — see
+   * compareWarningStatement.
+   */
+  backLabelVisible: boolean;
 }
 
-export type FieldStatus = "match" | "review" | "mismatch" | "missing";
+export type FieldStatus = "match" | "review" | "mismatch" | "missing" | "not_shown";
 
 export interface SecondOpinion {
   model: string;

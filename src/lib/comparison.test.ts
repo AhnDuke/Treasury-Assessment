@@ -17,6 +17,7 @@ function extracted(overrides: Partial<ExtractedLabelData> = {}): ExtractedLabelD
     abvPercent: 45,
     netContents: "750 mL",
     warningStatementText: STATUTORY_WARNING_TEXT,
+    backLabelVisible: true,
     ...overrides,
   };
 }
@@ -93,5 +94,25 @@ describe("compareLabelToApplication", () => {
     const fields = compareLabelToApplication(application, extracted({ netContents: null }));
     expect(fields.find((f) => f.field === "netContents")!.status).toBe("missing");
     expect(determineOverallStatus(fields)).toBe("rejected");
+  });
+
+  it("reports a missing warning as an evidence gap when no back view was supplied", () => {
+    // A single front photo genuinely doesn't contain the warning. Calling
+    // that a violation is what manufactured false "missing warning" reports.
+    const fields = compareLabelToApplication(
+      application,
+      extracted({ warningStatementText: null, backLabelVisible: false })
+    );
+    const warning = fields.find((f) => f.field === "warningStatement")!;
+    expect(warning.status).toBe("not_shown");
+    expect(warning.detail).toContain("back");
+  });
+
+  it("reports a missing warning as a genuine omission when a back view was supplied", () => {
+    const fields = compareLabelToApplication(
+      application,
+      extracted({ warningStatementText: null, backLabelVisible: true })
+    );
+    expect(fields.find((f) => f.field === "warningStatement")!.status).toBe("missing");
   });
 });
