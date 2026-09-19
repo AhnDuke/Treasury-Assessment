@@ -69,6 +69,87 @@ The assessment describes the job this way: *"An agent pulls up an application, l
 
 ---
 
+### Task 0: Make the migration genuinely re-runnable
+
+Added during the pre-flight scan, after verifying the failure rather than inferring it. `npm run db:migrate` currently fails on any run after the first:
+
+```
+NeonDbError: column "image_url" does not exist   (SQLSTATE 42703)
+```
+
+The images backfill reads `image_url` in a statement that a later statement drops, so the file works exactly once — yet its own comment claims it is safe to re-run, and this plan's Global Constraints depend on that being true. Tasks 3 and 4 both run the migration and would both fail here.
+
+The fix reads legacy columns through `to_jsonb(applications)->>'column_name'`, which parses whether or not the column still exists and evaluates to NULL once it is gone. No `DO` block, no runner change, no annotation scheme — the one-file architecture the runner requires is preserved.
+
+**Files:**
+- Modify: `db/schema.sql`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: a `db/schema.sql` that can be applied repeatedly. Tasks 3 and 4 depend on this.
+
+- [ ] **Step 1: Confirm the failure first**
+
+Run: `npm run db:migrate`
+Expected: FAIL with `column "image_url" does not exist`. If it succeeds, the database predates the images migration — say so in the report and continue anyway; the fix is still correct.
+
+- [ ] **Step 2: Rewrite the images backfill**
+
+In `db/schema.sql`, replace the `UPDATE applications SET images = ...` statement and the comment block above it:
+
+```sql
+-- Migration: one image per application -> many (front, back, ...).
+-- These run after the CREATE TABLE above rather than replacing its columns,
+-- so the backfill below always has the legacy columns to read from — on a
+-- fresh database they're created and then dropped, on an existing one the
+-- rows are migrated. (The runner executes statements in order and can't
+-- handle DO blocks, which is why this is plain sequential DDL.)
+--
+-- The backfill reads the legacy columns through to_jsonb(applications)
+-- rather than naming them directly. A direct reference stops parsing once
+-- the DROP below has run, which made this file fail on every run after the
+-- first with `column "image_url" does not exist` — the opposite of the
+-- idempotence it claimed. Through to_jsonb the statement parses either way
+-- and simply matches no rows once the columns are gone.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS images JSONB;
+
+UPDATE applications
+SET images = jsonb_build_array(
+  jsonb_build_object(
+    'url', to_jsonb(applications) ->> 'image_url',
+    'filename', to_jsonb(applications) ->> 'image_filename',
+    'contentType', to_jsonb(applications) ->> 'image_content_type'
+  )
+)
+WHERE images IS NULL AND to_jsonb(applications) ->> 'image_url' IS NOT NULL;
+```
+
+The three `DROP COLUMN IF EXISTS` statements below it are already idempotent — leave them alone.
+
+- [ ] **Step 3: Verify it is now re-runnable**
+
+Run: `npm run db:migrate && npm run db:migrate`
+Expected: both runs complete, each printing `Applied N statement(s) from schema.sql.` with no error.
+
+- [ ] **Step 4: Verify the backfill still works on legacy data**
+
+The rewrite must not have turned the backfill into a silent no-op. Confirm no row lost its images:
+
+```bash
+node --env-file-if-exists=.env.local -e "const{neon}=require('@neondatabase/serverless');neon(process.env.DATABASE_URL)\`SELECT count(*)::int AS total, count(images)::int AS with_images FROM applications\`.then(r=>console.log(r[0]))"
+```
+
+Expected: `total` and `with_images` are equal. Report both numbers.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add db/schema.sql
+git commit -m "make the schema backfill survive a second migration run"
+```
+
+---
+
 ### Task 1: Evidence gaps — the `not_shown` field status
 
 The Government Warning is nearly always on the back label. When no image shows a back view, a missing warning is an evidence gap, not a violation. This task adds the signal and the distinct status it drives.
@@ -579,13 +660,17 @@ Append to `db/schema.sql`. Follow the existing multi-image migration's shape —
 -- which is typed to TriageStatus.
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS triage_status TEXT;
 
+-- Reads overall_status through to_jsonb(applications) rather than naming it,
+-- for the same reason as the images backfill above: a direct reference stops
+-- parsing once the DROP below has run, which would make this file fail on
+-- every subsequent migration. See Task 0.
 UPDATE applications
-SET triage_status = CASE overall_status
+SET triage_status = CASE to_jsonb(applications) ->> 'overall_status'
   WHEN 'approved' THEN 'clean'
   WHEN 'flagged' THEN 'review'
   WHEN 'rejected' THEN 'discrepancy'
 END
-WHERE triage_status IS NULL AND overall_status IS NOT NULL;
+WHERE triage_status IS NULL AND to_jsonb(applications) ->> 'overall_status' IS NOT NULL;
 
 ALTER TABLE applications DROP COLUMN IF EXISTS overall_status;
 ```
