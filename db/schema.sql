@@ -1,6 +1,6 @@
 -- Applications table: one row per label submitted for review, whether added
 -- one at a time or through a bulk import. A "batch" is just the set of rows
--- sharing an import_batch_id — there's no separate batches table to keep in
+-- sharing an import_batch_id - there's no separate batches table to keep in
 -- sync.
 --
 -- The runner (scripts/migrate.mjs) executes these statements one at a time
@@ -42,7 +42,7 @@ CREATE INDEX IF NOT EXISTS applications_created_at_idx ON applications (created_
 
 -- Migration: one image per application -> many (front, back, ...).
 -- These run after the CREATE TABLE above rather than replacing its columns,
--- so the backfill below always has the legacy columns to read from — on a
+-- so the backfill below always has the legacy columns to read from - on a
 -- fresh database they're created and then dropped, on an existing one the
 -- rows are migrated. (The runner executes statements in order and can't
 -- handle DO blocks, which is why this is plain sequential DDL.)
@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS applications_created_at_idx ON applications (created_
 -- The backfill reads the legacy columns through to_jsonb(applications)
 -- rather than naming them directly. A direct reference stops parsing once
 -- the DROP below has run, which made this file fail on every run after the
--- first with `column "image_url" does not exist` — the opposite of the
+-- first with `column "image_url" does not exist` - the opposite of the
 -- idempotence it claimed. Through to_jsonb the statement parses either way
 -- and simply matches no rows once the columns are gone.
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS images JSONB;
@@ -102,7 +102,7 @@ ALTER TABLE applications DROP COLUMN IF EXISTS overall_status;
 --
 -- decision_flagged_fields snapshots which fields the automated check had
 -- flagged at the moment of sign-off. An agent approving an application the
--- check flagged is the most useful signal this system produces — it is the
+-- check flagged is the most useful signal this system produces - it is the
 -- calibration data for the matching thresholds, which are currently
 -- reasonable defaults rather than anything tuned against real adjudications.
 --

@@ -38,11 +38,11 @@ export function ResultsCard({ triageStatus, fields, footer }: ResultsCardProps) 
               <dl className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-ink-muted">Submitted on application</dt>
-                  <dd className="wrap-break-word text-ink">{field.expected ?? "—"}</dd>
+                  <dd className="wrap-break-word text-ink">{field.expected ?? "-"}</dd>
                 </div>
                 <div>
                   <dt className="text-ink-muted">Found on label</dt>
-                  <dd className="wrap-break-word text-ink">{field.extracted ?? "—"}</dd>
+                  <dd className="wrap-break-word text-ink">{field.extracted ?? "-"}</dd>
                 </div>
               </dl>
               {field.detail && <p className="mt-2 text-sm text-ink-muted">{field.detail}</p>}
@@ -51,7 +51,7 @@ export function ResultsCard({ triageStatus, fields, footer }: ResultsCardProps) 
                   Second check: {field.secondOpinion.agreesWithFirstPass ? (
                     "a second model read the label the same way."
                   ) : (
-                    <>a second model read this as &quot;{field.secondOpinion.extracted ?? "nothing"}&quot; instead — confirm manually.</>
+                    <>a second model read this as &quot;{field.secondOpinion.extracted ?? "nothing"}&quot; instead. Confirm manually.</>
                   )}
                 </p>
               )}

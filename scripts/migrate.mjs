@@ -1,4 +1,4 @@
-// One-time setup script, not part of the request path — run with:
+// One-time setup script, not part of the request path - run with:
 //   npm run db:migrate
 // Splits schema.sql on statement boundaries because the Neon HTTP driver
 // (appropriate for a serverless request path) executes one statement per
@@ -21,7 +21,7 @@ const sql = neon(databaseUrl);
 const schema = readFileSync(schemaPath, "utf8");
 
 // Strip `--` comment lines out of each statement rather than dropping whole
-// chunks that begin with one — a statement preceded by a comment block (as
+// chunks that begin with one - a statement preceded by a comment block (as
 // CREATE TABLE is here) would otherwise be discarded silently. Naive about
 // `--` inside string literals, which this schema doesn't have.
 const statements = schema

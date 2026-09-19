@@ -6,7 +6,7 @@ import type { AcceptedImageType, ExtractedLabelData } from "./types";
 // model for what is otherwise a one-shot vision call.
 const MODEL = "claude-haiku-4-5-20251001";
 
-// Used only to re-check fields the first pass didn't cleanly match — see
+// Used only to re-check fields the first pass didn't cleanly match - see
 // getSecondOpinion. Never the primary path, so the latency/cost trade-off
 // only applies to the labels that actually need it.
 export const SECOND_OPINION_MODEL = "claude-sonnet-5";
@@ -24,7 +24,7 @@ function getClient(): Anthropic {
 }
 
 // Maps FieldResult.field keys (used by comparison.ts) to ExtractedLabelData
-// keys — they differ for the warning statement ("warningStatement" vs.
+// keys - they differ for the warning statement ("warningStatement" vs.
 // "warningStatementText"), so this mapping is the single source of truth
 // rather than duplicating the two naming schemes elsewhere.
 export const FIELD_TO_EXTRACTION_KEY: Record<string, Exclude<keyof ExtractedLabelData, "backLabelVisible">> = {
@@ -159,7 +159,7 @@ async function runExtractionCall(
 }
 
 const SHARED_INSTRUCTIONS =
-  "These images are multiple photos of the same product's labels (typically front and back, sometimes a side or neck label). A given field may appear on only one of them, so check every image before concluding a field is absent. Extract each field exactly as printed, preserving original casing and punctuation verbatim. The Government Warning statement is usually small print on the back or side label — read it carefully and transcribe it word for word, including the 'GOVERNMENT WARNING:' header. Also report whether any image shows a face other than the front of the packaging, so that a field which is absent can be distinguished from a face nobody photographed. Only use null for a field that is genuinely not present on any image; do not use null merely because text is small or hard to read.";
+  "These images are multiple photos of the same product's labels (typically front and back, sometimes a side or neck label). A given field may appear on only one of them, so check every image before concluding a field is absent. Extract each field exactly as printed, preserving original casing and punctuation verbatim. The Government Warning statement is usually small print on the back or side label. Read it carefully and transcribe it word for word, including the 'GOVERNMENT WARNING:' header. Also report whether any image shows a face other than the front of the packaging, so that a field which is absent can be distinguished from a face nobody photographed. Only use null for a field that is genuinely not present on any image; do not use null merely because text is small or hard to read.";
 
 export async function extractLabelData(images: EncodedImage[]): Promise<ExtractedLabelData> {
   const input = await runExtractionCall(MODEL, EXTRACTION_TOOL, images, SHARED_INSTRUCTIONS);
@@ -175,7 +175,7 @@ export async function extractLabelData(images: EncodedImage[]): Promise<Extracte
 }
 
 /**
- * Independently re-reads only the given fields with a stronger model — used
+ * Independently re-reads only the given fields with a stronger model - used
  * to double-check fields the first pass didn't cleanly match. Deliberately
  * doesn't reveal what Haiku read or what the application claims, so this is
  * a genuinely independent second read, not a biased confirmation check.

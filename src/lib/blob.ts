@@ -2,7 +2,7 @@ import { del, get, put } from "@vercel/blob";
 
 /**
  * Uploads a label image to Vercel Blob and returns its URL. The store is
- * private, so this URL isn't directly fetchable by a browser — reads go
+ * private, so this URL isn't directly fetchable by a browser - reads go
  * through downloadLabelImage() below, authenticated with the store token.
  */
 export async function uploadLabelImage(buffer: Buffer, filename: string, contentType: string): Promise<string> {

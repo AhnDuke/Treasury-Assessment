@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { AddSingleApplication } from "./AddSingleApplication";
-import { ImportApplications } from "./ImportApplications";
+import { GuidedImport } from "./GuidedImport";
 import { ReviewQueue } from "./ReviewQueue";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -14,12 +14,15 @@ export function VerifierApp() {
   const [addMode, setAddMode] = useState<AddMode>("single");
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink sm:text-3xl">TTB label verification</h1>
+          <h1 className="text-2xl font-bold text-ink sm:text-3xl">
+            TTB label verification
+          </h1>
           <p className="mt-2 max-w-prose text-ink-muted">
-            Check each application against its label photos, then approve or reject it.
+            Check each application against its label photos, then approve or
+            reject it.
           </p>
         </div>
         <ThemeToggle />
@@ -34,36 +37,59 @@ export function VerifierApp() {
         </TabButton>
       </div>
 
-      {view === "queue" ? (
+      {/* Every panel stays mounted and is hidden with CSS instead of being
+          unmounted. Switching to the queue partway through an import used to
+          discard the parsed sheet, every field edit and every attached photo,
+          leaving the agent to start again from the CSV. `hidden` sets
+          display:none, so a hidden panel is out of the accessibility tree and
+          out of the tab order too. */}
+      <div className={view === "queue" ? undefined : "hidden"}>
         <ReviewQueue />
-      ) : (
-        <div className="space-y-6">
-          <div className="inline-flex border border-border">
-            <SubTabButton active={addMode === "single"} onClick={() => setAddMode("single")}>
-              Single
-            </SubTabButton>
-            <SubTabButton active={addMode === "import"} onClick={() => setAddMode("import")}>
-              Import
-            </SubTabButton>
-          </div>
-          {addMode === "single" ? (
-            <AddSingleApplication onViewQueue={() => setView("queue")} />
-          ) : (
-            <ImportApplications onViewQueue={() => setView("queue")} />
-          )}
+      </div>
+
+      <div className={`space-y-6 ${view === "add" ? "" : "hidden"}`}>
+        <div className="inline-flex border border-border">
+          <SubTabButton
+            active={addMode === "single"}
+            onClick={() => setAddMode("single")}
+          >
+            Single
+          </SubTabButton>
+          <SubTabButton
+            active={addMode === "import"}
+            onClick={() => setAddMode("import")}
+          >
+            Import
+          </SubTabButton>
         </div>
-      )}
+        <div className={addMode === "single" ? undefined : "hidden"}>
+          <AddSingleApplication onViewQueue={() => setView("queue")} />
+        </div>
+        <div className={addMode === "import" ? undefined : "hidden"}>
+          <GuidedImport onViewQueue={() => setView("queue")} />
+        </div>
+      </div>
     </div>
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`-mb-px border-b-2 px-0.5 pb-3 text-base font-semibold transition-colors ${
-        active ? "border-seal text-ink" : "border-transparent text-ink-muted hover:text-ink"
+        active
+          ? "border-seal text-ink"
+          : "border-transparent text-ink-muted hover:text-ink"
       }`}
     >
       {children}
@@ -71,7 +97,15 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-function SubTabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function SubTabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"

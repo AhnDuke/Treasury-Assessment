@@ -14,7 +14,7 @@ export interface ExtractedLabelData {
   /**
    * Whether any supplied image shows a face other than the front. Drives the
    * distinction between "the label is missing the warning" (a violation) and
-   * "nobody photographed the side it's printed on" (an evidence gap) — see
+   * "nobody photographed the side it's printed on" (an evidence gap) - see
    * compareWarningStatement.
    */
   backLabelVisible: boolean;
@@ -39,7 +39,7 @@ export interface FieldResult {
 }
 
 /**
- * What the automated check thinks of an application — a triage signal used to
+ * What the automated check thinks of an application - a triage signal used to
  * sort the queue, never a decision. A person's approve/reject is recorded
  * separately as ReviewDecision, and the two deliberately use different words.
  */
@@ -67,7 +67,7 @@ export interface LabelImage {
 
 // One image is allowed because an applicant may supply a single composite
 // photo showing front and back together. A front-only photo is caught by the
-// evidence-gap check in comparison.ts, not by a count rule — the count never
+// evidence-gap check in comparison.ts, not by a count rule - the count never
 // told us what was actually photographed.
 export const MIN_IMAGES_PER_APPLICATION = 1;
 export const MAX_IMAGES_PER_APPLICATION = 3;

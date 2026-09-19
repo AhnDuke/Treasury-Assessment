@@ -23,7 +23,7 @@ function suggestedReason(fields: FieldResult[]): string {
   return flagged
     .map((f) =>
       f.status === "not_shown"
-        ? `${f.label}: not visible in the photos supplied — a clearer photo is needed.`
+        ? `${f.label}: not visible in the photos supplied - a clearer photo is needed.`
         : `${f.label}: ${f.detail ?? "does not match the application."}`
     )
     .join("\n");
@@ -37,7 +37,7 @@ export function ReviewModal({ application, onClose, onDecided }: ReviewModalProp
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // showModal() can't be set declaratively — it's the call that establishes
+  // showModal() can't be set declaratively - it's the call that establishes
   // the top layer, the backdrop, and the focus trap.
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -120,7 +120,7 @@ export function ReviewModal({ application, onClose, onDecided }: ReviewModalProp
         <section>
           <h3 className="mb-3 text-sm font-semibold text-ink">Application fields</h3>
           {application.status === "pending" || application.status === "processing" ? (
-            <p className="text-ink-muted">Still processing — check back shortly.</p>
+            <p className="text-ink-muted">Still processing. Check back shortly.</p>
           ) : application.status === "cancelled" ? (
             <p className="text-ink-muted">Import was cancelled before this label was checked.</p>
           ) : application.status === "error" ? (
@@ -144,11 +144,11 @@ export function ReviewModal({ application, onClose, onDecided }: ReviewModalProp
                     <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
                       <div>
                         <dt className="text-ink-muted">Submitted on application</dt>
-                        <dd className="wrap-break-word text-ink">{field.expected ?? "—"}</dd>
+                        <dd className="wrap-break-word text-ink">{field.expected ?? "-"}</dd>
                       </div>
                       <div>
                         <dt className="text-ink-muted">Found on label</dt>
-                        <dd className="wrap-break-word text-ink">{field.extracted ?? "—"}</dd>
+                        <dd className="wrap-break-word text-ink">{field.extracted ?? "-"}</dd>
                       </div>
                     </dl>
                     {field.detail && <p className="mt-2 text-sm text-ink-muted">{field.detail}</p>}
@@ -157,7 +157,7 @@ export function ReviewModal({ application, onClose, onDecided }: ReviewModalProp
                         Second check:{" "}
                         {field.secondOpinion.agreesWithFirstPass
                           ? "a second model read the label the same way."
-                          : `a second model read this as "${field.secondOpinion.extracted ?? "nothing"}" instead — confirm manually.`}
+                          : `a second model read this as "${field.secondOpinion.extracted ?? "nothing"}" instead. Confirm manually.`}
                       </p>
                     )}
                   </div>

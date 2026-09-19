@@ -10,7 +10,7 @@ type TabKey = "clean" | "attention" | "approved" | "rejected" | "not_ready";
 
 const TABS: { key: TabKey; label: string; test: (a: ApplicationRecord) => boolean }[] = [
   // Order follows the working day: the easy pile, then the judgement calls,
-  // then what's already been signed off. "Not ready" is last but present —
+  // then what's already been signed off. "Not ready" is last but present -
   // an application that vanishes from every tab never gets adjudicated, and
   // in a compliance queue that's a defect, not a tidy default.
   { key: "clean", label: "Clean matches", test: (a) => a.status === "done" && !a.decision && a.triageStatus === "clean" },
@@ -264,7 +264,7 @@ export function ReviewQueue() {
                 <tr key={application.id} className="align-top">
                   <td className="px-4 py-3 font-medium text-ink">{application.brandName}</td>
                   <td className="max-w-40 truncate px-4 py-3 text-ink-muted">
-                    {application.images[0]?.filename ?? "—"}
+                    {application.images[0]?.filename ?? "-"}
                     {application.images.length > 1 && (
                       <span className="text-ink-muted/70"> +{application.images.length - 1}</span>
                     )}
@@ -279,7 +279,7 @@ export function ReviewQueue() {
                         {DECISION_META[application.decision].label}
                       </span>
                     ) : (
-                      <span className="text-ink-muted">—</span>
+                      <span className="text-ink-muted">-</span>
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-muted">{new Date(application.createdAt).toLocaleString()}</td>

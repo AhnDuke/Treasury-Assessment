@@ -30,7 +30,7 @@ describe("compareLabelToApplication", () => {
   });
 
   it("treats a casing/punctuation-only difference as a full match, not a rejection", () => {
-    // Dave's example: "STONE'S THROW" vs "Stone's Throw" — technically not an
+    // Dave's example: "STONE'S THROW" vs "Stone's Throw" - technically not an
     // exact string match, but obviously the same brand. Should not even need
     // human review, per his complaint about tools creating needless friction.
     const fields = compareLabelToApplication(
@@ -65,7 +65,7 @@ describe("compareLabelToApplication", () => {
   });
 
   it("flags a near-perfect warning read as review, not a mismatch", () => {
-    // One dropped character is a transcription artifact, not a label defect —
+    // One dropped character is a transcription artifact, not a label defect -
     // treating it as a violation is what produced false "incorrect warning"
     // reports.
     const typo = STATUTORY_WARNING_TEXT.replace("birth defects", "birth defect");
@@ -119,7 +119,7 @@ describe("compareLabelToApplication", () => {
 
 describe("determineTriageStatus", () => {
   it("separates a clean read from one needing attention from one with a hard discrepancy", () => {
-    // These three values are the AI's triage signal, never a decision — an
+    // These three values are the AI's triage signal, never a decision - an
     // agent's approve/reject is recorded separately. Keeping the vocabularies
     // apart is the point of the names.
     expect(determineTriageStatus(compareLabelToApplication(application, extracted()))).toBe("clean");

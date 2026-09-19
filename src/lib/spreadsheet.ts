@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { parseCsv } from "./csv";
-import { MAX_IMAGES_PER_APPLICATION, MIN_IMAGES_PER_APPLICATION, type ApplicationData } from "./types";
+import type { ApplicationData } from "./types";
 
 /** Parses a CSV or XLSX buffer into lowercase-keyed records, one per data row. */
 export async function parseSpreadsheet(buffer: Buffer, filename: string): Promise<Record<string, string>[]> {
@@ -39,20 +39,32 @@ export async function parseSpreadsheet(buffer: Buffer, filename: string): Promis
 }
 
 export interface ImportRow {
-  filenames: string[];
+  rowNumber: number;
   data: ApplicationData;
+  /**
+   * Filenames the sheet suggests for this row, if it carries a `filenames`
+   * column. Purely a hint shown to the agent so they know which files to
+   * pick - the app never resolves them, because the photos are attached by
+   * hand per row. A sheet without the column is perfectly valid.
+   */
+  suggestedFilenames: string[];
 }
 
 /**
  * Validates and maps one lowercase-keyed spreadsheet record into an
  * ImportRow. Pure and library-agnostic (works the same for a row that came
  * from CSV or XLSX) so it's unit-testable without a real file.
+ *
+ * Note what is NOT validated here: images. An imported row carries only the
+ * application data, and the agent attaches its photos while reviewing the row
+ * - so a sheet that names no files is not an error, and the image count is
+ * enforced at submit time instead.
  */
-export function rowToImportRow(row: Record<string, string>, rowIndex: number): { row: ImportRow } | { error: string } {
-  // `filenames` is semicolon-separated (a comma would collide with CSV
-  // delimiters). The legacy single `filename` column still works.
+export function rowToImportRow(row: Record<string, string>, rowNumber: number): { row: ImportRow } | { error: string } {
+  // Semicolon-separated, because a comma would collide with CSV delimiters.
+  // The legacy single `filename` column is still read.
   const rawFilenames = row.filenames?.trim() || row.filename?.trim() || "";
-  const filenames = rawFilenames
+  const suggestedFilenames = rawFilenames
     .split(";")
     .map((name) => name.trim())
     .filter(Boolean);
@@ -62,21 +74,13 @@ export function rowToImportRow(row: Record<string, string>, rowIndex: number): {
   const abvPercentRaw = row.abv_percent?.trim();
   const netContents = row.net_contents?.trim();
 
-  if (filenames.length === 0) return { error: `Row ${rowIndex}: missing "filenames".` };
-  const label = filenames.join(", ");
-  if (filenames.length < MIN_IMAGES_PER_APPLICATION) {
-    return { error: `Row ${rowIndex} (${label}): needs at least ${MIN_IMAGES_PER_APPLICATION} image(s), separated by ";".` };
-  }
-  if (filenames.length > MAX_IMAGES_PER_APPLICATION) {
-    return { error: `Row ${rowIndex} (${label}): more than ${MAX_IMAGES_PER_APPLICATION} images.` };
-  }
   if (!brandName || !classType || !abvPercentRaw || !netContents) {
-    return { error: `Row ${rowIndex} (${label}): missing brand_name, class_type, abv_percent, or net_contents.` };
+    return { error: `Row ${rowNumber}: missing brand_name, class_type, abv_percent, or net_contents.` };
   }
   const abvPercent = parseFloat(abvPercentRaw);
   if (Number.isNaN(abvPercent)) {
-    return { error: `Row ${rowIndex} (${label}): abv_percent "${abvPercentRaw}" is not a number.` };
+    return { error: `Row ${rowNumber}: abv_percent "${abvPercentRaw}" is not a number.` };
   }
 
-  return { row: { filenames, data: { brandName, classType, abvPercent, netContents } } };
+  return { row: { rowNumber, data: { brandName, classType, abvPercent, netContents }, suggestedFilenames } };
 }

@@ -9,8 +9,8 @@ export const runtime = "nodejs";
  *
  * Needed because the Blob store is private: the stored URL isn't fetchable
  * from a page, so reads go through the SDK authenticated with the store
- * token. Indexing by position in the application's own image list — rather
- * than taking a Blob URL as a parameter — keeps this from becoming an open
+ * token. Indexing by position in the application's own image list - rather
+ * than taking a Blob URL as a parameter - keeps this from becoming an open
  * proxy for arbitrary URLs.
  */
 export async function GET(_request: Request, context: { params: Promise<{ id: string; index: string }> }) {

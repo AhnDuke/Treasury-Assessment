@@ -43,7 +43,7 @@ function formatSecondOpinionValue(
 
 /**
  * Merges a stronger model's independent re-read onto the fields it covers.
- * Pure and side-effect-free so it's unit-testable without an API call —
+ * Pure and side-effect-free so it's unit-testable without an API call -
  * never changes `status` itself, only annotates it (see FieldResult.secondOpinion).
  */
 export function applySecondOpinions(

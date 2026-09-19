@@ -59,7 +59,7 @@ export async function processPendingApplications(): Promise<number> {
  * budget runs out. Used right after an import so most batches finish inline;
  * the cron sweep (a single processPendingApplications() call per tick) is
  * what guarantees anything left over eventually gets processed too, since a
- * serverless invocation's lifetime — even extended via `after()` — isn't
+ * serverless invocation's lifetime - even extended via `after()` - isn't
  * unbounded.
  */
 export async function drainPendingApplications(budgetMs = 4 * 60 * 1000): Promise<void> {

@@ -39,7 +39,7 @@ function splitCsvRows(text: string): string[][] {
   return rows.filter((r) => !(r.length === 1 && r[0].trim() === ""));
 }
 
-/** Parses a small CSV (header row + data rows) into lowercase-keyed records. No streaming, no huge-file support — this is a prototype batch tool, not a data pipeline. */
+/** Parses a small CSV (header row + data rows) into lowercase-keyed records. No streaming, no huge-file support - this is a prototype batch tool, not a data pipeline. */
 export function parseCsv(text: string): Record<string, string>[] {
   const rows = splitCsvRows(text);
   if (rows.length === 0) return [];

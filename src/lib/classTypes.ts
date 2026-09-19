@@ -2,7 +2,7 @@
  * Class/type designations drawn from TTB's standards of identity
  * (27 CFR Part 4 wine, Part 5 distilled spirits, Part 7 malt beverages).
  *
- * This is a REPRESENTATIVE SUBSET, not the exhaustive regulatory list — the
+ * This is a REPRESENTATIVE SUBSET, not the exhaustive regulatory list - the
  * full set of classes and types (with all their sub-designations, age and
  * origin qualifiers) is far larger. The field accepts free text precisely
  * because of that: an agent shouldn't be blocked by an incomplete list.

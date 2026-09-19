@@ -2,7 +2,7 @@ import type { FieldStatus, ReviewDecision, TriageStatus } from "./types";
 
 // Plain typographic glyphs, not emoji: colored via our own palette instead
 // of the platform's built-in emoji rendering, so a status mark looks the
-// same on every device — closer to a stamped mark on a paper ledger than a
+// same on every device - closer to a stamped mark on a paper ledger than a
 // chat-app icon, and more predictable for the "Dave" / "my mother" audience.
 export const FIELD_STATUS_META: Record<
   FieldStatus,
@@ -16,7 +16,7 @@ export const FIELD_STATUS_META: Record<
 };
 
 // Note: FieldStatus and TriageStatus both have a "review" member, but they
-// mean different things at different levels — a single field needing a
+// mean different things at different levels - a single field needing a
 // closer look, versus a whole application needing attention. The labels
 // below correctly diverge ("Needs review" vs "Needs attention"), so this is
 // a trip hazard for a developer reading the two maps, not a user-facing bug.
@@ -26,21 +26,21 @@ export const TRIAGE_STATUS_META: Record<
 > = {
   clean: {
     glyph: "✓",
-    label: "Clean match — every field agrees with the application",
+    label: "Clean match: every field agrees with the application",
     shortLabel: "Clean match",
     className: "text-verified bg-verified-bg border-verified-border",
     edgeClassName: "border-l-verified",
   },
   review: {
     glyph: "!",
-    label: "Needs attention — some fields could not be confirmed",
+    label: "Needs attention: some fields could not be confirmed",
     shortLabel: "Needs attention",
     className: "text-flag bg-flag-bg border-flag-border",
     edgeClassName: "border-l-flag",
   },
   discrepancy: {
     glyph: "✕",
-    label: "Needs attention — the label disagrees with the application",
+    label: "Needs attention: the label disagrees with the application",
     shortLabel: "Discrepancy",
     className: "text-reject bg-reject-bg border-reject-border",
     edgeClassName: "border-l-reject",

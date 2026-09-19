@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  * would 413 before reaching any of our code.
  *
  * The content-type and size limits are enforced here, at token issuance,
- * rather than in the client — a client-side check is a UX affordance, not a
+ * rather than in the client - a client-side check is a UX affordance, not a
  * control.
  *
  * Caveat, documented in the README: Vercel's guidance is to authenticate the
@@ -51,13 +51,13 @@ export async function POST(request: Request) {
         addRandomSuffix: true,
       }),
       onUploadCompleted: async () => {
-        // Nothing to do — the application row is created by the add/import
+        // Nothing to do - the application row is created by the add/import
         // route once the client reports its uploaded URLs.
       },
     });
     return NextResponse.json(result);
   } catch (err) {
-    // Surfaced in the Vercel function logs — the client only sees the message.
+    // Surfaced in the Vercel function logs - the client only sees the message.
     console.error("Blob upload token generation failed:", err);
     return NextResponse.json({ error: "Could not start the upload. Please try again." }, { status: 400 });
   }

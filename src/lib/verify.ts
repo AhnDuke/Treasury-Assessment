@@ -5,7 +5,7 @@ import type { ApplicationData, VerificationOutcome } from "./types";
 
 /**
  * The extract -> compare -> escalate pipeline, with no persistence baked in
- * — callers (the single-add route, the import batch processor) each decide
+ * - callers (the single-add route, the import batch processor) each decide
  * how to store the result. Throws (with an already-friendly message) on
  * failure rather than swallowing it, so callers can record it as their own
  * `error` status instead of a silent default.

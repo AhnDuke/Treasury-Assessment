@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 // Vercel sends `Authorization: Bearer $CRON_SECRET` on its own Cron
 // invocations when CRON_SECRET is set. This endpoint calls the Anthropic API
-// on every hit, so — unlike the rest of this no-auth prototype — it's worth
+// on every hit, so - unlike the rest of this no-auth prototype - it's worth
 // gating: without this check, anyone who found the URL could trigger repeated
 // paid API calls on demand. Fails closed: a missing CRON_SECRET rejects
 // every request rather than silently leaving the endpoint open.

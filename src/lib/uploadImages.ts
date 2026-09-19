@@ -27,7 +27,7 @@ export function describeFileProblem(file: File): string | null {
 /**
  * Uploads each file straight from the browser to Blob and returns the
  * metadata the API routes need. Goes direct rather than through our own API
- * because Vercel Functions cap request bodies at 4.5MB — a couple of phone
+ * because Vercel Functions cap request bodies at 4.5MB - a couple of phone
  * photos would exceed that on their own.
  */
 export async function uploadLabelImages(files: File[]): Promise<LabelImage[]> {
@@ -48,7 +48,7 @@ export async function uploadLabelImages(files: File[]): Promise<LabelImage[]> {
     );
   } catch (err) {
     // The SDK flattens a failing token route into a generic upload error, so
-    // ask the route directly for its own explanation — only on the failure
+    // ask the route directly for its own explanation - only on the failure
     // path, so the happy path costs nothing extra.
     const reason = await explainTokenRouteFailure();
     throw new Error(reason ?? (err instanceof Error ? err.message : "Could not upload the label photos."));

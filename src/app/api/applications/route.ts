@@ -45,6 +45,30 @@ export async function POST(request: NextRequest) {
   }
 
   const data: ApplicationData = { brandName, classType, abvPercent, netContents };
+
+  // A row submitted from a guided import carries its batch id. It is queued
+  // and deliberately NOT checked yet - not inline, and not in the background
+  // either. An agent still working the sheet shouldn't be racing a stream of
+  // Claude calls for the same serverless invocation, and rows flickering
+  // between "processing" and "done" while they type is noise. The import
+  // fires /api/applications/process once every row has been handled, and the
+  // batch id is what lets the queue show that batch's progress and cancel the
+  // rest. A one-off single add has nothing to batch with and no reason to
+  // defer, so it keeps its inline result.
+  // Checked against the UUID shape rather than passed straight through: the
+  // column is a UUID, so a malformed value would surface as an opaque database
+  // error instead of a clear one.
+  const rawBatchId = typeof body.importBatchId === "string" ? body.importBatchId.trim() : "";
+  if (rawBatchId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawBatchId)) {
+    return NextResponse.json({ error: "That import batch reference isn't valid." }, { status: 400 });
+  }
+  const importBatchId = rawBatchId || null;
+
+  if (importBatchId) {
+    const queued = await createApplication(data, imageResult.images, "pending", importBatchId);
+    return NextResponse.json({ application: queued });
+  }
+
   let application = await createApplication(data, imageResult.images, "processing");
 
   try {

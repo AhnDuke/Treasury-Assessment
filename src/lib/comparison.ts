@@ -4,7 +4,7 @@ import type { ApplicationData, ExtractedLabelData, FieldResult, TriageStatus } f
 
 // Below this similarity ratio (post case/punctuation normalization) a text
 // field is treated as a real mismatch rather than a formatting difference.
-// Tuned against Dave's "STONE'S THROW" vs "Stone's Throw" example — same
+// Tuned against Dave's "STONE'S THROW" vs "Stone's Throw" example - same
 // brand, different casing, should not hard-fail.
 const FUZZY_MATCH_THRESHOLD = 0.85;
 
@@ -42,7 +42,7 @@ function compareTextField(field: string, label: string, expected: string, extrac
       expected,
       extracted,
       status: "review",
-      detail: `${Math.round(ratio * 100)}% similar to the submitted value — differs only in casing/punctuation. Confirm manually.`,
+      detail: `${Math.round(ratio * 100)}% similar to the submitted value - differs only in casing/punctuation. Confirm manually.`,
     };
   }
   return {
@@ -78,7 +78,7 @@ function compareAbv(expected: number, extracted: number | null): FieldResult {
 
 function parseNetContentsToMl(value: string): number | null {
   // Note: periods are stripped only from the matched unit text below, never
-  // from the whole string up front — this field's number is often a decimal
+  // from the whole string up front - this field's number is often a decimal
   // (e.g. "0.75 L"), and an earlier version of this function blanket-stripped
   // periods to handle "fl. oz." and corrupted "0.75" into "075".
   const cleaned = value.toLowerCase().replace(/\s+/g, " ").trim();
@@ -120,7 +120,7 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
     expected,
     extracted,
     status: "review",
-    detail: "Could not confidently parse quantity/unit on one side — confirm manually.",
+    detail: "Could not confidently parse quantity/unit on one side. Confirm manually.",
   };
 }
 
@@ -141,7 +141,7 @@ function compareWarningStatement(extracted: string | null, backLabelVisible: boo
         extracted: null,
         status: "not_shown",
         detail:
-          "No photo shows the back or side of the packaging, where this statement is almost always printed. This is not a finding against the label — request a photo of the back before deciding.",
+          "No photo shows the back or side of the packaging, where this statement is almost always printed. This is not a finding against the label. Request a photo of the back before deciding.",
       };
     }
     return {
@@ -150,7 +150,7 @@ function compareWarningStatement(extracted: string | null, backLabelVisible: boo
       expected,
       extracted: null,
       status: "missing",
-      detail: "A back or side view was supplied and carries no warning statement — this is a genuine omission.",
+      detail: "A back or side view was supplied and carries no warning statement, which is a genuine omission.",
     };
   }
 
@@ -160,7 +160,7 @@ function compareWarningStatement(extracted: string | null, backLabelVisible: boo
 
   if (!textMatches) {
     // A near-perfect read almost certainly means the label is correct and the
-    // transcription slipped a character — a measurement error, not a label
+    // transcription slipped a character - a measurement error, not a label
     // defect. Treating those as outright mismatches is what produced false
     // "incorrect warning" reports. Strictness is preserved: anything short of
     // essentially identical still goes to a human, it just isn't pre-judged
@@ -173,7 +173,7 @@ function compareWarningStatement(extracted: string | null, backLabelVisible: boo
         expected,
         extracted,
         status: "review",
-        detail: `Wording appears correct (${Math.round(similarity * 100)}% identical) but the transcription differed slightly — likely a reading artifact rather than a label defect. Confirm visually.`,
+        detail: `Wording appears correct (${Math.round(similarity * 100)}% identical) but the transcription differed slightly - likely a reading artifact rather than a label defect. Confirm visually.`,
       };
     }
     return {
@@ -182,7 +182,7 @@ function compareWarningStatement(extracted: string | null, backLabelVisible: boo
       expected,
       extracted,
       status: "mismatch",
-      detail: `Wording does not match the required statutory text (27 CFR 16.21) — only ${Math.round(similarity * 100)}% identical.`,
+      detail: `Wording does not match the required statutory text (27 CFR 16.21) - only ${Math.round(similarity * 100)}% identical.`,
     };
   }
   if (!headerIsAllCaps) {
@@ -193,7 +193,7 @@ function compareWarningStatement(extracted: string | null, backLabelVisible: boo
       extracted,
       status: "review",
       detail:
-        '"GOVERNMENT WARNING:" is not all-caps in the extracted text. Note: bold formatting cannot be verified from OCR text alone — confirm caps/bold visually.',
+        '"GOVERNMENT WARNING:" is not all-caps in the extracted text. Note: bold formatting cannot be verified from OCR text alone. Confirm caps/bold visually.',
     };
   }
   return { field: "warningStatement", label, expected, extracted, status: "match" };
