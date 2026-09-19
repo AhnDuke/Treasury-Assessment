@@ -1,6 +1,6 @@
 # TTB Label Verification (Prototype)
 
-A review-queue tool for TTB compliance agents: applications go in (one at a time or in bulk), each one is checked automatically against its label photos - brand name, class/type, ABV, net contents, and the federal Government Warning statement - and a person signs off on every application in the queue. Built for the take-home assessment in [ASSESSMENT.md](ASSESSMENT.md).
+A review-queue tool for TTB compliance agents: applications go in (one at a time or in bulk), each one is checked automatically against its label photos - brand name, class/type, ABV, net contents, the bottler's name and address, country of origin for imports, and the federal Government Warning statement - and a person signs off on every application in the queue. Built for the take-home assessment in [ASSESSMENT.md](ASSESSMENT.md).
 
 ## Live Demo
 
@@ -34,16 +34,24 @@ Other scripts: `npm run build` / `npm start` (production build), `npm test` (uni
 
 **Staying current**: the queue checks for finished work in the background but never rearranges itself while you are reading. When something changes it offers a **Refresh** button saying how many applications finished or changed, and applies the update when you ask for it. Anything you do yourself, a decision or a delete, takes effect immediately.
 
+**Re-checking**: an application's results are a snapshot of the checks that existed when it was processed, so anything already in the queue keeps the old answer when a check is added or a rule corrected. **Check this label again**, in the review window, puts it back in the queue to be checked against the current rules. A recorded decision is left alone: the automated check is not a verdict, so re-running it cannot unmake a person's sign-off.
+
 ## How It Works
 
-**Reviewing applications** (the default view) - every application that's been added, sorted into five tabs by where it is in the workflow:
+Two top-level places to work: **Applications**, the list, and **Review**, which walks through them one at a time.
 
-- **Clean matches** - the automated check found nothing wrong. Still needs an agent's sign-off.
-- **Needs attention** - one or more fields didn't match, or couldn't be confirmed from the photos supplied.
-- **Approved** / **Rejected** - already signed off, with the reason and the time of the decision.
-- **Not ready** - still processing, cancelled, or failed. These stay visible on purpose: an application that disappears from every tab never gets adjudicated.
+**Applications** splits on the only question that decides whether there is work left: has a person signed this off yet.
+
+- **Needs review** - everything without a decision, including the ones still being checked. Their Status badge says why they can't be acted on yet. Nothing disappears: an application visible nowhere never gets adjudicated.
+- **Reviewed** - already signed off, with the reason and the time of the decision.
+
+The automated check's opinion deliberately gets no tab of its own. It is a triage signal, not a verdict, and giving it navigation invited reading it as one. It lives in the Status column instead, which the list is sorted by out of the box, so the queue opens already ordered the way the work gets done: the clean matches an agent can clear quickly, then the ones needing attention, then the discrepancies, then whatever is not checked yet.
 
 Search by brand or class/type, and sort by clicking any column header (a second click reverses it). Open an application by clicking its row or the Review button. The review window puts the label photos and the application fields side by side - each field marked as matching, needing a closer look, disagreeing, not found, or not visible in the photos - and ends in **Approve** or **Reject**. A rejection records why; an approval doesn't need one.
+
+**Review** is the answer to the throughput problem a fully human sign-off creates. If every application needs a person, the whole saving is in how cheap one review is, and opening a modal, deciding, closing it and hunting for the next row put navigation between every single decision. It shows one application in full, sized to fit the window so the decision buttons are never below the fold, offers **Approve**, **Reject** or **Skip for now**, and loads the next one the moment a decision is recorded. Skipping writes nothing and leaves the application exactly where it was.
+
+What it deliberately does not offer is acting on a set. A bulk approve would turn sign-off into a gesture over applications nobody looked at, which is the one thing this tool exists not to do.
 
 The automated check never decides anything. It sorts the queue and marks the fields worth looking at; a person signs off on every application.
 
@@ -115,7 +123,7 @@ Two honest notes. The escalation path roughly doubles the time, because a field 
 ## Assumptions & Trade-offs
 
 - **Bold-formatting on "GOVERNMENT WARNING:" is not verified** - only that it's present and in all caps. Bold is a font-weight property that isn't reliably recoverable from OCR/vision text output; faking a confidence signal here seemed worse than being explicit that it's unverified and should be confirmed visually.
-- **Three of TTB's mandatory label elements are not checked.** Name and address of the bottler or producer, country of origin for imports, and the sulfite declaration required on wine are all mandatory and all outside what this prototype verifies. The five fields it does check are the ones the assessment's example label enumerates; the rest would need extra application fields and a reworked extraction prompt rather than new comparison logic. Worth naming because they are real requirements, not oversights in the regulation.
+- **The wine sulfite declaration is still not checked.** Name and address and country of origin now are; the sulfite declaration (27 CFR 4.34) is wine-only and would need its own application field. Worth naming because it is a real requirement, not an oversight in the regulation.
 - **Beverage-type rules cover alcohol content only.** The type resolved for each application drives the alcohol content rule and nothing else. Standards of fill, for instance, differ between wine and spirits (27 CFR 4.72 and 5.203) and net contents is checked against the application's own figure rather than against the permitted sizes.
 - **The flavored malt beverage exception is surfaced, not decided.** A malt beverage must state its alcohol content if the alcohol comes from added nonbeverage flavors, and nothing on the label reliably says whether it does. The note on the field says so and leaves the call to the reviewer.
 - **No COLA integration.** Per the IT stakeholder, this is a standalone proof-of-concept; COLA integration was explicitly described as a separate, much larger effort.
@@ -124,6 +132,8 @@ Two honest notes. The escalation path roughly doubles the time, because a field 
 - **No true XLSX cell-embedded images** - the spreadsheet carries application data only; photos are attached per row while reviewing the import, not pulled out of the cells. Extracting embedded images is a meaningfully bigger and more fragile undertaking for the same practical outcome.
 - **Import is deliberately slower than a bulk drop.** An earlier version matched a folder of images to rows by filename and created everything in one action. That was faster but it made attaching several photos to one application awkward, and it created rows from a sheet nobody had looked at. Walking the rows means an agent sees and can correct every application before it exists - the trade is throughput for the chance to catch a bad row before it enters the queue.
 - **The upload-token endpoint is unauthenticated.** Vercel's guidance is to authenticate the user inside `onBeforeGenerateToken`; this prototype has no auth, so anyone who finds that endpoint can write to the Blob store within the type/size caps. That's a storage-abuse and cost vector, not only a data-exposure one - it's the one place where the no-auth posture has a consequence beyond visibility, and it would be the first thing to close in a real deployment.
+- **No check-out, so two agents could review the same application.** A production system would lock an application to whoever opened it and keep an audit log of who checked out what and how they decided, which matters more here than in most tools because the decision is a federal adjudication with a name attached to it. Both need accounts to hang identity off, which this prototype does not have, so neither is built. The **Review one by one** flow would be the first place to feel it: two agents running it at once would be handed the same applications.
+- **A decision records what and why, but not who.** Same root cause: there is nobody to record. `decided_at`, the reason, and the snapshot of what the automated check had flagged are all stored; an agent identity column is the missing piece, and it is the first thing accounts would add.
 - **No auth, one shared queue.** Anyone with the URL sees and can add to/delete from the same queue - fine for a single-reviewer prototype demo; a real multi-agent deployment would need accounts and permissions, plus the PII/retention review the IT stakeholder flagged.
 - **Deployed on public infrastructure (Vercel) calling a public API (Anthropic).** The stakeholder interview mentioned TTB's real network blocks outbound calls to ML endpoints - a production deployment inside that network would need an on-prem or VPC-hosted model rather than a public API call. Not a concern for this prototype, since it isn't deployed inside TTB's network.
 - **Matching thresholds (fuzzy-match similarity, ABV tolerance, net-contents tolerance) are reasonable defaults, not calibrated against real TTB adjudication data.** Each decision now stores which fields the automated check had flagged at the moment of sign-off, so an agent approving something the check flagged is recorded as exactly that - which is the data you'd tune these thresholds against once real reviewers have used it.

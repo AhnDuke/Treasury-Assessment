@@ -3,14 +3,30 @@
 import { useState, type ReactNode } from "react";
 import { AddSingleApplication } from "./AddSingleApplication";
 import { GuidedImport } from "./GuidedImport";
+import { QuickReview } from "./QuickReview";
 import { ReviewQueue } from "./ReviewQueue";
+import { useApplications } from "@/lib/useApplications";
 import { ThemeToggle } from "./ThemeToggle";
 
-type View = "queue" | "add";
+type View = "applications" | "review" | "add";
 type AddMode = "single" | "import";
 
 export function VerifierApp() {
-  const [view, setView] = useState<View>("queue");
+  const [view, setView] = useState<View>("applications");
+  // One source for both surfaces, so the list and the one-at-a-time review
+  // never disagree about what is in the queue.
+  const queue = useApplications();
+
+  /**
+   * Switching between the list and the one-at-a-time review refetches, so
+   * neither shows what the other has already changed. Done here in the click
+   * rather than in an effect on `view`: it is a response to something the
+   * agent did, not state to synchronise.
+   */
+  function show(next: View) {
+    setView(next);
+    if (next !== "add") void queue.reload();
+  }
   const [addMode, setAddMode] = useState<AddMode>("single");
 
   return (
@@ -29,11 +45,14 @@ export function VerifierApp() {
       </header>
 
       <div className="mb-8 flex gap-6 border-b border-border">
-        <TabButton active={view === "queue"} onClick={() => setView("queue")}>
-          Review applications
+        <TabButton active={view === "applications"} onClick={() => show("applications")}>
+          Applications
         </TabButton>
-        <TabButton active={view === "add"} onClick={() => setView("add")}>
-          Add applications
+        <TabButton active={view === "review"} onClick={() => show("review")}>
+          Review
+        </TabButton>
+        <TabButton active={view === "add"} onClick={() => show("add")}>
+          Add Test Applications
         </TabButton>
       </div>
 
@@ -43,9 +62,23 @@ export function VerifierApp() {
           leaving the agent to start again from the CSV. `hidden` sets
           display:none, so a hidden panel is out of the accessibility tree and
           out of the tab order too. */}
-      <div className={view === "queue" ? undefined : "hidden"}>
-        <ReviewQueue />
+      <div className={view === "applications" ? undefined : "hidden"}>
+        <ReviewQueue {...queue} />
       </div>
+
+      {/* Unlike the other panels this one is NOT kept mounted. Where it is in
+          the queue is derived from the data rather than held in state, so
+          remounting on entry is what makes it open on the next thing actually
+          waiting instead of a stale application left over from a previous
+          visit. Nothing is lost by unmounting it: a skip is per-sitting and a
+          decision is already recorded on the server. */}
+      {view === "review" && (
+        <QuickReview
+          applications={queue.applications ?? []}
+          onDecided={queue.replace}
+          onFinished={() => show("applications")}
+        />
+      )}
 
       <div className={`space-y-6 ${view === "add" ? "" : "hidden"}`}>
         <div className="inline-flex border border-border">
@@ -63,10 +96,10 @@ export function VerifierApp() {
           </SubTabButton>
         </div>
         <div className={addMode === "single" ? undefined : "hidden"}>
-          <AddSingleApplication onViewQueue={() => setView("queue")} />
+          <AddSingleApplication onViewQueue={() => show("applications")} />
         </div>
         <div className={addMode === "import" ? undefined : "hidden"}>
-          <GuidedImport onViewQueue={() => setView("queue")} />
+          <GuidedImport onViewQueue={() => show("applications")} />
         </div>
       </div>
     </div>

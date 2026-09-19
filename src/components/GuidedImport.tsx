@@ -22,7 +22,7 @@ interface WorkRow {
 
 interface ParsedResponse {
   importBatchId: string;
-  rows: { rowNumber: number; data: { brandName: string; classType: string; abvPercent: number; netContents: string; beverageType?: string | null }; suggestedFilenames: string[] }[];
+  rows: { rowNumber: number; data: { brandName: string; classType: string; abvPercent: number; netContents: string; bottlerInfo?: string | null; countryOfOrigin?: string | null; beverageType?: string | null }; suggestedFilenames: string[] }[];
   errors: string[];
 }
 
@@ -134,6 +134,8 @@ export function GuidedImport({ onViewQueue }: { onViewQueue: () => void }) {
             classType: row.data.classType,
             abvPercent: String(row.data.abvPercent),
             netContents: row.data.netContents,
+            bottlerInfo: row.data.bottlerInfo ?? "",
+            countryOfOrigin: row.data.countryOfOrigin ?? "",
             beverageType: row.data.beverageType ?? "",
           },
           suggestedFilenames: row.suggestedFilenames ?? [],
@@ -216,6 +218,8 @@ export function GuidedImport({ onViewQueue }: { onViewQueue: () => void }) {
           classType: row.form.classType,
           abvPercent: row.form.abvPercent,
           netContents: row.form.netContents,
+          bottlerInfo: row.form.bottlerInfo,
+          countryOfOrigin: row.form.countryOfOrigin,
           beverageType: formBeverageType(row.form),
           images: uploaded,
           importBatchId: batchId,

@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS applications (
     CHECK (triage_status IN ('clean', 'review', 'discrepancy')),
   fields_json JSONB,
   error_message TEXT,
+  bottler_info TEXT,
+  country_of_origin TEXT,
   beverage_type TEXT,
   processing_ms INTEGER,
   decision TEXT
@@ -142,3 +144,14 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS processing_ms INTEGER;
 -- at all, so checking every product against the distilled-spirits rule
 -- reported a violation that does not exist.
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS beverage_type TEXT;
+
+-- Name and address of the bottler, producer or importer, and country of
+-- origin. Both appear on TTB's list of mandatory label information: the name
+-- and address on every label, the country of origin on imports only.
+--
+-- Nullable. A blank name and address still has the label checked for one, it
+-- just cannot be compared. A blank country of origin means the applicant is
+-- not declaring an import, and nothing on a label reliably marks a product as
+-- imported, so that is what decides whether the check applies at all.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS bottler_info TEXT;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS country_of_origin TEXT;

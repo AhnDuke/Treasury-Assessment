@@ -32,6 +32,8 @@ export const FIELD_TO_EXTRACTION_KEY: Record<string, Exclude<keyof ExtractedLabe
   classType: "classType",
   abvPercent: "abvPercent",
   netContents: "netContents",
+  bottlerInfo: "bottlerInfo",
+  countryOfOrigin: "countryOfOrigin",
   warningStatement: "warningStatementText",
 };
 
@@ -51,6 +53,16 @@ const FIELD_PROPERTIES: Record<keyof ExtractedLabelData, { type: (string | null)
   netContents: {
     type: ["string", "null"],
     description: "Net contents verbatim, e.g. '750 mL'.",
+  },
+  bottlerInfo: {
+    type: ["string", "null"],
+    description:
+      "The name and address of the bottler, producer, packer or importer, verbatim, including any lead-in such as 'Bottled by' or 'Imported by'. Usually small print on the back or side label.",
+  },
+  countryOfOrigin: {
+    type: ["string", "null"],
+    description:
+      "The country of origin exactly as printed, e.g. 'Product of Mexico' or 'Imported from Scotland'. Null if the label states no country of origin.",
   },
   warningStatementText: {
     type: ["string", "null"],
@@ -159,7 +171,7 @@ async function runExtractionCall(
 }
 
 const SHARED_INSTRUCTIONS =
-  "These images are multiple photos of the same product's labels (typically front and back, sometimes a side or neck label). A given field may appear on only one of them, so check every image before concluding a field is absent. Extract each field exactly as printed, preserving original casing and punctuation verbatim. The Government Warning statement is usually small print on the back or side label. Read it carefully and transcribe it word for word, including the 'GOVERNMENT WARNING:' header. Also report whether any image shows a face other than the front of the packaging, so that a field which is absent can be distinguished from a face nobody photographed. Only use null for a field that is genuinely not present on any image; do not use null merely because text is small or hard to read.";
+  "These images are multiple photos of the same product's labels (typically front and back, sometimes a side or neck label). A given field may appear on only one of them, so check every image before concluding a field is absent. Extract each field exactly as printed, preserving original casing and punctuation verbatim. The Government Warning statement is usually small print on the back or side label. Read it carefully and transcribe it word for word, including the 'GOVERNMENT WARNING:' header. The name and address of the bottler or producer, and the country of origin if there is one, are also usually small print on the back or side. Also report whether any image shows a face other than the front of the packaging, so that a field which is absent can be distinguished from a face nobody photographed. Only use null for a field that is genuinely not present on any image; do not use null merely because text is small or hard to read.";
 
 export async function extractLabelData(images: EncodedImage[]): Promise<ExtractedLabelData> {
   const input = await runExtractionCall(MODEL, EXTRACTION_TOOL, images, SHARED_INSTRUCTIONS);

@@ -76,6 +76,8 @@ export function rowToImportRow(row: Record<string, string>, rowNumber: number): 
   const netContents = row.net_contents?.trim();
   // Optional. Left null when absent or unrecognised, so the class/type
   // designation decides instead of a typo silently picking the wrong rules.
+  const bottlerInfo = row.bottler_info?.trim() || row.name_and_address?.trim() || null;
+  const countryOfOrigin = row.country_of_origin?.trim() || null;
   const declaredType = row.beverage_type?.trim().toLowerCase();
   const beverageType = isBeverageType(declaredType) ? declaredType : null;
 
@@ -87,5 +89,5 @@ export function rowToImportRow(row: Record<string, string>, rowNumber: number): 
     return { error: `Row ${rowNumber}: abv_percent "${abvPercentRaw}" is not a number.` };
   }
 
-  return { row: { rowNumber, data: { brandName, classType, abvPercent, netContents, beverageType }, suggestedFilenames } };
+  return { row: { rowNumber, data: { brandName, classType, abvPercent, netContents, bottlerInfo, countryOfOrigin, beverageType }, suggestedFilenames } };
 }

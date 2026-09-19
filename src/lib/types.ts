@@ -6,6 +6,19 @@ export interface ApplicationData {
   abvPercent: number;
   netContents: string;
   /**
+   * Name and address of the bottler, producer or importer. Mandatory on every
+   * label (27 CFR 4.34, 5.66, 7.63), so the label is checked for one whether
+   * or not the application declares it.
+   */
+  bottlerInfo?: string | null;
+  /**
+   * Country of origin. Only imports must state it, and nothing on a label
+   * reliably marks a product as imported, so this drives the check: declared
+   * means treat it as an import and require it, absent means domestic and skip
+   * the check entirely rather than inventing a finding.
+   */
+  countryOfOrigin?: string | null;
+  /**
    * Which body of TTB regulation the product falls under. Optional because it
    * can usually be inferred from the class/type designation; declare it when
    * the designation is free text we would not recognise.
@@ -18,6 +31,8 @@ export interface ExtractedLabelData {
   classType: string | null;
   abvPercent: number | null;
   netContents: string | null;
+  bottlerInfo: string | null;
+  countryOfOrigin: string | null;
   warningStatementText: string | null;
   /**
    * Whether any supplied image shows a face other than the front. Drives the
@@ -88,6 +103,8 @@ export interface ApplicationRecord {
   classType: string;
   abvPercent: number;
   netContents: string;
+  bottlerInfo: string | null;
+  countryOfOrigin: string | null;
   beverageType: BeverageType | null;
   images: LabelImage[];
   status: ApplicationStatus;

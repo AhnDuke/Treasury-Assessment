@@ -1,24 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { ErrorCard } from "./ResultsCard";
 import { ReviewModal } from "./ReviewModal";
 import { DECISION_META, TRIAGE_STATUS_META } from "@/lib/statusMeta";
 import { classifyProcessingTime, formatProcessingTime, TARGET_PROCESSING_MS } from "@/lib/processingTime";
+import type { ApplicationsState } from "@/lib/useApplications";
 import type { ApplicationRecord, ApplicationStatus } from "@/lib/types";
 
-type TabKey = "clean" | "attention" | "approved" | "rejected" | "not_ready";
+type TabKey = "needs_review" | "reviewed";
 
+/**
+ * Two tabs, split on the only question that decides whether an agent still
+ * has work to do: has a person signed this off yet.
+ *
+ * The automated check's own opinion deliberately does not get a tab. It is a
+ * triage signal, not a verdict, and giving it navigation of its own invited
+ * reading it as one. It lives in the sortable Status column instead, so an
+ * agent who wants the discrepancies first sorts by Status and gets them,
+ * without the machine having decided anything.
+ *
+ * Applications that are not checked yet, or that were cancelled or errored,
+ * stay in Needs review rather than getting a tab of their own. They still need
+ * a person eventually, and an application that is visible nowhere never gets
+ * adjudicated, which in a compliance queue is a defect rather than a tidy
+ * default. Their Status badge says why they cannot be acted on yet.
+ *
+ * The two predicates are exact complements, so every application is in exactly
+ * one tab by construction.
+ */
 const TABS: { key: TabKey; label: string; test: (a: ApplicationRecord) => boolean }[] = [
-  // Order follows the working day: the easy pile, then the judgement calls,
-  // then what's already been signed off. "Not ready" is last but present -
-  // an application that vanishes from every tab never gets adjudicated, and
-  // in a compliance queue that's a defect, not a tidy default.
-  { key: "clean", label: "Clean matches", test: (a) => a.status === "done" && !a.decision && a.triageStatus === "clean" },
-  { key: "attention", label: "Needs attention", test: (a) => a.status === "done" && !a.decision && a.triageStatus !== "clean" },
-  { key: "approved", label: "Approved", test: (a) => a.decision === "approved" },
-  { key: "rejected", label: "Rejected", test: (a) => a.decision === "rejected" },
-  { key: "not_ready", label: "Not ready", test: (a) => a.status !== "done" },
+  { key: "needs_review", label: "Needs review", test: (a) => !a.decision },
+  { key: "reviewed", label: "Reviewed", test: (a) => Boolean(a.decision) },
 ];
 
 type SortKey = "brand" | "file" | "status" | "checked" | "decision" | "added";
@@ -97,14 +110,6 @@ const COLUMNS: {
   { key: "added", label: "Added", firstDir: "desc", compare: (a, b, d) => plain(a.createdAt.localeCompare(b.createdAt), d) },
 ];
 
-/** Identifies what a row is currently showing, so a poll can tell whether
- *  anything an agent would notice has actually changed. */
-function queueSignature(list: ApplicationRecord[]): string {
-  return list
-    .map((a) => `${a.id}:${a.status}:${a.triageStatus ?? ""}:${a.decision ?? ""}:${a.processingMs ?? ""}`)
-    .join("|");
-}
-
 const LIFECYCLE_META: Record<Exclude<ApplicationStatus, "done">, { label: string; className: string }> = {
   pending: { label: "Pending", className: "text-ink-muted bg-paper-muted border-border" },
   processing: { label: "Processing…", className: "text-seal bg-paper-muted border-seal" },
@@ -162,75 +167,37 @@ interface BatchGroup {
   finished: number;
 }
 
-export function ReviewQueue() {
-  const [applications, setApplications] = useState<ApplicationRecord[] | null>(null);
-  /** Fetched by the poll but deliberately not shown yet. See loadApplications. */
-  const [incoming, setIncoming] = useState<ApplicationRecord[] | null>(null);
-  const [tab, setTab] = useState<TabKey>("clean");
+export function ReviewQueue({
+  applications,
+  loadError,
+  updatedCount,
+  applyUpdates,
+  reload,
+  replace,
+}: ApplicationsState) {
+  const [tab, setTab] = useState<TabKey>("needs_review");
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("added");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  // Status by default, so the queue opens already ordered the way the work
+  // gets done: the clean matches an agent can clear quickly, then the ones
+  // needing attention, then the discrepancies, then what is not checked yet.
+  const [sortKey, setSortKey] = useState<SortKey>("status");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [openId, setOpenId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
-  /**
-   * Background polls stage their result instead of applying it. Rows
-   * rearranging themselves under a reviewer's cursor while they are reading
-   * one is worse than being slightly out of date, so a poll only offers the
-   * update and the agent takes it when they are ready. Anything the agent
-   * themselves did (a decision, a delete, a resume) applies immediately,
-   * because they are expecting that change.
-   */
-  const loadApplications = useCallback(async (apply: boolean) => {
-    try {
-      const response = await fetch("/api/applications");
-      if (!response.ok) throw new Error(`The server returned an error (${response.status}).`);
-      const data = await response.json();
-      const list: ApplicationRecord[] = data.applications ?? [];
-      if (apply) {
-        setApplications(list);
-        setIncoming(null);
-      } else {
-        setIncoming(list);
-      }
-      setLoadError(null);
-    } catch {
-      setLoadError("Could not load the review queue. Check the server configuration and try again.");
-    }
-  }, []);
-
-  useEffect(() => {
-    // A data-fetching library (SWR/React Query) is the "by the book" answer
-    // to this lint rule, but is more than this prototype's timeline
-    // justifies for a single fetch-on-mount-and-poll view.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadApplications(true);
-  }, [loadApplications]);
-
-  const hasInFlight = applications?.some((a) => a.status === "pending" || a.status === "processing") ?? false;
-
-  useEffect(() => {
-    // Checked often while a batch is running, and still occasionally when the
-    // queue looks idle: this app has no auth and one shared queue, so work can
-    // finish because of a cron sweep or another reviewer, not only because of
-    // something this tab started.
-    const interval = setInterval(() => void loadApplications(false), hasInFlight ? 5000 : 20000);
-    return () => clearInterval(interval);
-  }, [hasInFlight, loadApplications]);
 
   async function handleDelete(id: string) {
     if (!window.confirm("Remove this application? This can't be undone.")) return;
     setBusyId(id);
     await fetch(`/api/applications/${id}`, { method: "DELETE" });
-    await loadApplications(true);
+    await reload();
     setBusyId(null);
   }
 
   async function handleCancelBatch(batchId: string) {
     setBusyId(batchId);
     await fetch(`/api/applications/import/${batchId}/cancel`, { method: "POST" });
-    await loadApplications(true);
+    await reload();
     setBusyId(null);
   }
 
@@ -245,16 +212,10 @@ export function ReviewQueue() {
     setSortDir(COLUMNS.find((c) => c.key === key)!.firstDir);
   }
 
-  function handleApplyUpdates() {
-    if (!incoming) return;
-    setApplications(incoming);
-    setIncoming(null);
-  }
-
   async function handleResume(batchId: string) {
     setBusyId(batchId);
     await fetch("/api/applications/process", { method: "POST" });
-    await loadApplications(true);
+    await reload();
     setBusyId(null);
   }
 
@@ -280,23 +241,6 @@ export function ReviewQueue() {
     });
   }
 
-  // How many rows the poll has seen change or appear since what is on screen.
-  // Compared by signature rather than by length so a row finishing its check
-  // counts, not just a row being added.
-  const updatedCount = (() => {
-    if (!incoming) return 0;
-    if (queueSignature(incoming) === queueSignature(applications)) return 0;
-    const before = new Map(applications.map((a) => [a.id, `${a.status}:${a.triageStatus ?? ""}:${a.decision ?? ""}`]));
-    let changed = 0;
-    for (const a of incoming) {
-      const prev = before.get(a.id);
-      if (prev === undefined || prev !== `${a.status}:${a.triageStatus ?? ""}:${a.decision ?? ""}`) changed += 1;
-    }
-    // A row disappearing is a change worth offering too.
-    const incomingIds = new Set(incoming.map((a) => a.id));
-    changed += applications.filter((a) => !incomingIds.has(a.id)).length;
-    return changed;
-  })();
 
   const column = COLUMNS.find((c) => c.key === sortKey)!;
   const query = search.trim().toLowerCase();
@@ -376,13 +320,14 @@ export function ReviewQueue() {
           </span>
           <button
             type="button"
-            onClick={handleApplyUpdates}
+            onClick={applyUpdates}
             className="border border-seal px-3 py-1.5 font-medium text-seal hover:bg-paper"
           >
             Refresh
           </button>
         </div>
       )}
+
 
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex-1">
@@ -402,8 +347,12 @@ export function ReviewQueue() {
           {applications.length === 0
             ? "No applications yet. Add one from the Add applications tab to get started."
             : query
-              ? `Nothing in ${TABS.find((t) => t.key === tab)!.label.toLowerCase()} matches "${search}".`
-              : `Nothing in ${TABS.find((t) => t.key === tab)!.label.toLowerCase()} right now.`}
+              ? tab === "needs_review"
+                ? `Nothing waiting for review matches "${search}".`
+                : `Nothing already reviewed matches "${search}".`
+              : tab === "needs_review"
+                ? "Nothing is waiting for review. Everything has been signed off."
+                : "Nothing has been reviewed yet."}
         </p>
       )}
 
@@ -520,7 +469,7 @@ export function ReviewQueue() {
           application={openApplication}
           onClose={() => setOpenId(null)}
           onDecided={(updated) => {
-            setApplications((prev) => (prev ?? []).map((a) => (a.id === updated.id ? updated : a)));
+            replace(updated);
             setOpenId(null);
           }}
         />

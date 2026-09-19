@@ -146,6 +146,142 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
   };
 }
 
+/**
+ * Strips the lead-in a label puts before a name and address. The regulations
+ * require one of several phrases ("bottled by", "produced and bottled by",
+ * "imported by", and so on), and the application almost never repeats it, so
+ * comparing the raw strings penalised a label for wording the rules demand.
+ */
+const PRODUCTION_VERB =
+  /\b(?:bottled|packed|produced|manufactured|imported|brewed|canned|distilled|vinted|blended|prepared|made)\b/i;
+
+function stripNameAddressLeadIn(value: string): string {
+  const text = value.trim();
+  // Take the opening clause up to the first "by". A fixed list of phrases was
+  // not enough: labels write things like "Distilled in Scotland and imported
+  // by ...", and anchoring on known phrases left that unstripped, which read
+  // as a mismatch against an application that simply named the company.
+  //
+  // Non-greedy on purpose, so an address that happens to contain another "by"
+  // later cannot swallow the name itself. The clause is only removed when it
+  // actually reads like a production or import statement, so a name beginning
+  // with an unrelated "by" is left alone.
+  const match = /^(.*?\bby)\s+/i.exec(text);
+  if (match && PRODUCTION_VERB.test(match[1])) {
+    return text.slice(match[0].length).trim();
+  }
+  return text;
+}
+
+/**
+ * Name and address of the bottler, producer or importer. Mandatory on every
+ * label, so the label is checked for one even when the application does not
+ * declare a value to compare against.
+ */
+function compareBottlerInfo(expected: string | null | undefined, extracted: string | null): FieldResult {
+  const label = "Name and Address of Bottler/Producer";
+  const declared = expected?.trim() ? expected.trim() : null;
+  const found = extracted?.trim() ? extracted.trim() : null;
+
+  if (!found) {
+    return {
+      field: "bottlerInfo",
+      label,
+      expected: declared,
+      extracted: null,
+      status: "missing",
+      detail: "Every label must carry the name and address of the bottler, producer or importer, and none was found.",
+    };
+  }
+  if (!declared) {
+    // The label satisfies the requirement, but there is nothing to check it
+    // against. Reported rather than passed silently, because an agent has no
+    // other way to notice the application left the field blank.
+    return {
+      field: "bottlerInfo",
+      label,
+      expected: null,
+      extracted: found,
+      status: "review",
+      detail: "The application didn't state this, so it could not be compared. Confirm the label's version is correct.",
+    };
+  }
+
+  const ratio = similarityRatio(stripNameAddressLeadIn(declared), stripNameAddressLeadIn(found));
+  if (ratio === 1) return { field: "bottlerInfo", label, expected: declared, extracted: found, status: "match" };
+  if (ratio >= FUZZY_MATCH_THRESHOLD) {
+    return {
+      field: "bottlerInfo",
+      label,
+      expected: declared,
+      extracted: found,
+      status: "review",
+      detail: `${Math.round(ratio * 100)}% similar to the submitted value. Address formatting often differs harmlessly, so confirm manually.`,
+    };
+  }
+  return {
+    field: "bottlerInfo",
+    label,
+    expected: declared,
+    extracted: found,
+    status: "mismatch",
+    detail: `Only ${Math.round(ratio * 100)}% similar to the submitted value.`,
+  };
+}
+
+/**
+ * Country of origin, which only imports must state. Nothing on a label
+ * reliably marks a product as imported, so a declared value on the application
+ * is what makes this an import: absent means domestic and the check is skipped
+ * entirely rather than inventing a requirement that does not apply.
+ */
+function compareCountryOfOrigin(expected: string | null | undefined, extracted: string | null): FieldResult | null {
+  const declared = expected?.trim();
+  if (!declared) return null;
+
+  const label = "Country of Origin";
+  const found = extracted?.trim() ? extracted.trim() : null;
+  if (!found) {
+    return {
+      field: "countryOfOrigin",
+      label,
+      expected: declared,
+      extracted: null,
+      status: "missing",
+      detail: "The application declares an imported product, and an imported label must state its country of origin.",
+    };
+  }
+
+  // A label writes it as "Product of Mexico" where an application says
+  // "Mexico", so containment counts as a match before falling back to
+  // similarity.
+  const normalizedDeclared = normalizeForComparison(declared);
+  const normalizedFound = normalizeForComparison(found);
+  if (normalizedFound.includes(normalizedDeclared) || normalizedDeclared.includes(normalizedFound)) {
+    return { field: "countryOfOrigin", label, expected: declared, extracted: found, status: "match" };
+  }
+
+  const ratio = similarityRatio(declared, found);
+  if (ratio >= FUZZY_MATCH_THRESHOLD) {
+    return {
+      field: "countryOfOrigin",
+      label,
+      expected: declared,
+      extracted: found,
+      status: "review",
+      detail: `${Math.round(ratio * 100)}% similar to the submitted value. Confirm manually.`,
+    };
+  }
+  return {
+    field: "countryOfOrigin",
+    label,
+    expected: declared,
+    extracted: found,
+    status: "mismatch",
+    detail: "The country of origin on the label is not the one on the application.",
+  };
+}
+
 function compareWarningStatement(extracted: string | null, backLabelVisible: boolean): FieldResult {
   const label = "Government Warning Statement";
   const expected = STATUTORY_WARNING_TEXT;
@@ -233,8 +369,13 @@ export function compareLabelToApplication(expected: ApplicationData, extracted: 
     compareTextField("classType", "Class/Type Designation", expected.classType, extracted.classType),
     compareAbv(expected.abvPercent, extracted.abvPercent, abvRule),
     compareNetContents(expected.netContents, extracted.netContents),
+    compareBottlerInfo(expected.bottlerInfo, extracted.bottlerInfo),
+    // Null for a domestic product, and dropped rather than shown as a
+    // non-finding, so the field list stays what this label actually has to
+    // carry.
+    compareCountryOfOrigin(expected.countryOfOrigin, extracted.countryOfOrigin),
     compareWarningStatement(extracted.warningStatementText, extracted.backLabelVisible),
-  ];
+  ].filter((field): field is FieldResult => field !== null);
 }
 
 export function determineTriageStatus(fields: FieldResult[]): TriageStatus {

@@ -66,6 +66,8 @@ export function AddSingleApplication({ onViewQueue }: { onViewQueue: () => void 
           classType: form.classType,
           abvPercent: form.abvPercent,
           netContents: form.netContents,
+          bottlerInfo: form.bottlerInfo,
+          countryOfOrigin: form.countryOfOrigin,
           beverageType: formBeverageType(form),
           images: uploaded,
         }),

@@ -2,7 +2,12 @@
 
 import type { ChangeEvent } from "react";
 import { ALL_CLASS_TYPES } from "@/lib/classTypes";
-import { BEVERAGE_TYPE_LABELS, inferBeverageType, isBeverageType, type BeverageType } from "@/lib/beverageType";
+import {
+  BEVERAGE_TYPE_LABELS,
+  inferBeverageType,
+  isBeverageType,
+  type BeverageType,
+} from "@/lib/beverageType";
 
 /** The four application fields, as strings - ABV stays text until submit so a
  *  half-typed number doesn't fight the input. */
@@ -11,6 +16,8 @@ export interface ApplicationFormState {
   classType: string;
   abvPercent: string;
   netContents: string;
+  bottlerInfo: string;
+  countryOfOrigin: string;
   /** "" means let the class/type designation decide. See beverageType.ts. */
   beverageType: string;
 }
@@ -20,17 +27,26 @@ export const emptyApplicationForm: ApplicationFormState = {
   classType: "",
   abvPercent: "",
   netContents: "",
+  bottlerInfo: "",
+  countryOfOrigin: "",
   beverageType: "",
 };
 
 /** The value to send to the API: an explicit choice, or null to let the
  *  class/type designation decide. */
-export function formBeverageType(form: ApplicationFormState): BeverageType | null {
+export function formBeverageType(
+  form: ApplicationFormState,
+): BeverageType | null {
   return isBeverageType(form.beverageType) ? form.beverageType : null;
 }
 
 export function isApplicationFormFilled(form: ApplicationFormState): boolean {
-  return Boolean(form.brandName.trim() && form.classType.trim() && form.abvPercent.trim() && form.netContents.trim());
+  return Boolean(
+    form.brandName.trim() &&
+    form.classType.trim() &&
+    form.abvPercent.trim() &&
+    form.netContents.trim(),
+  );
 }
 
 /**
@@ -58,7 +74,8 @@ export function ApplicationFields({
   disabled?: boolean;
 }) {
   function update(key: keyof ApplicationFormState) {
-    return (event: ChangeEvent<HTMLInputElement>) => onChange({ ...form, [key]: event.target.value });
+    return (event: ChangeEvent<HTMLInputElement>) =>
+      onChange({ ...form, [key]: event.target.value });
   }
 
   const inputClass =
@@ -67,7 +84,9 @@ export function ApplicationFields({
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-ink">Brand name</span>
+        <span className="mb-1 block text-sm font-medium text-ink">
+          Brand name
+        </span>
         <input
           type="text"
           value={form.brandName}
@@ -80,7 +99,9 @@ export function ApplicationFields({
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-ink">Class/type designation</span>
+        <span className="mb-1 block text-sm font-medium text-ink">
+          Class/type designation
+        </span>
         <input
           type="text"
           list={`${idPrefix}-class-types`}
@@ -99,7 +120,9 @@ export function ApplicationFields({
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-ink">Alcohol content (% ABV)</span>
+        <span className="mb-1 block text-sm font-medium text-ink">
+          Alcohol content (% ABV)
+        </span>
         <input
           type="number"
           step="0.1"
@@ -113,7 +136,9 @@ export function ApplicationFields({
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-ink">Net contents</span>
+        <span className="mb-1 block text-sm font-medium text-ink">
+          Net contents
+        </span>
         <input
           type="text"
           value={form.netContents}
@@ -125,26 +150,66 @@ export function ApplicationFields({
         />
       </label>
 
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-sm font-medium text-ink">
+          Name and address of bottler/producer
+        </span>
+        <input
+          type="text"
+          value={form.bottlerInfo}
+          onChange={update("bottlerInfo")}
+          placeholder="Old Tom Distillery, Bardstown, KY"
+          disabled={disabled}
+          className={inputClass}
+        />
+        <span className="mt-1 block text-sm text-ink-muted">
+          Every label must carry this. Leave out the &quot;Bottled by&quot; part; it&apos;s ignored when comparing.
+        </span>
+      </label>
+
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-sm font-medium text-ink">
+          Country of origin
+        </span>
+        <input
+          type="text"
+          value={form.countryOfOrigin}
+          onChange={update("countryOfOrigin")}
+          placeholder="Leave blank for a domestic product"
+          disabled={disabled}
+          className={inputClass}
+        />
+        <span className="mt-1 block text-sm text-ink-muted">
+          Only imports have to state this, so filling it in is what marks this application as an import.
+        </span>
+      </label>
+
       {/* Which TTB part applies, because the mandatory label information
           differs between them. Usually inferable from the class/type
           designation, so this only needs answering for a designation we
           don't recognise; the label under the field says what was worked
           out, so an agent can see whether it needs correcting. */}
       <label className="block sm:col-span-2">
-        <span className="mb-1 block text-sm font-medium text-ink">Beverage type</span>
+        <span className="mb-1 block text-sm font-medium text-ink">
+          Beverage type
+        </span>
         <select
           value={form.beverageType}
-          onChange={(event) => onChange({ ...form, beverageType: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...form, beverageType: event.target.value })
+          }
           disabled={disabled}
           className={inputClass}
         >
-          <option value="">Work it out from the class/type</option>
+          <option value="">Auto</option>
           <option value="spirits">{BEVERAGE_TYPE_LABELS.spirits}</option>
           <option value="wine">{BEVERAGE_TYPE_LABELS.wine}</option>
           <option value="malt">{BEVERAGE_TYPE_LABELS.malt}</option>
         </select>
         {!form.beverageType && (
-          <span className="mt-1 block text-sm text-ink-muted">{describeInferred(form.classType)}</span>
+          <span className="mt-1 block text-sm text-ink-muted">
+            {describeInferred(form.classType)}
+          </span>
         )}
       </label>
     </div>
@@ -152,7 +217,8 @@ export function ApplicationFields({
 }
 
 function describeInferred(classType: string): string {
-  if (!classType.trim()) return "Enter a class/type and this will be worked out for you.";
+  if (!classType.trim())
+    return "Enter a class/type and this will be worked out for you.";
   const inferred = inferBeverageType(classType);
   return inferred
     ? `Read as ${BEVERAGE_TYPE_LABELS[inferred].toLowerCase()} from the class/type.`

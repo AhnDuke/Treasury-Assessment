@@ -9,7 +9,7 @@ describe("rowToImportRow", () => {
     expect(result).toEqual({
       row: {
         rowNumber: 2,
-        data: { brandName: "OLD TOM DISTILLERY", classType: "Bourbon", abvPercent: 45, netContents: "750 mL", beverageType: null },
+        data: { brandName: "OLD TOM DISTILLERY", classType: "Bourbon", abvPercent: 45, netContents: "750 mL", bottlerInfo: null, countryOfOrigin: null, beverageType: null },
         suggestedFilenames: [],
       },
     });
@@ -59,5 +59,29 @@ describe("rowToImportRow", () => {
     // silently picking the wrong set of TTB rules.
     const result = rowToImportRow({ ...base, beverage_type: "seltzer" }, 10);
     expect("row" in result && result.row.data.beverageType).toBeNull();
+  });
+});
+
+describe("rowToImportRow, mandatory label elements", () => {
+  it("reads the bottler name and address column", () => {
+    const result = rowToImportRow({ ...base, bottler_info: "Old Tom Distillery, Bardstown, KY" }, 11);
+    expect("row" in result && result.row.data.bottlerInfo).toBe("Old Tom Distillery, Bardstown, KY");
+  });
+
+  it("accepts name_and_address as an alias, since that is what TTB calls it", () => {
+    const result = rowToImportRow({ ...base, name_and_address: "Old Tom Distillery, Bardstown, KY" }, 12);
+    expect("row" in result && result.row.data.bottlerInfo).toBe("Old Tom Distillery, Bardstown, KY");
+  });
+
+  it("leaves country of origin null for a domestic row", () => {
+    // Null is what marks the product as domestic, which is what stops the
+    // import-only country of origin check from running at all.
+    const result = rowToImportRow({ ...base }, 13);
+    expect("row" in result && result.row.data.countryOfOrigin).toBeNull();
+  });
+
+  it("reads country of origin when the row declares one", () => {
+    const result = rowToImportRow({ ...base, country_of_origin: "Scotland" }, 14);
+    expect("row" in result && result.row.data.countryOfOrigin).toBe("Scotland");
   });
 });

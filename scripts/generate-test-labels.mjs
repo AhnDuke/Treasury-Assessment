@@ -150,6 +150,7 @@ function backSvg(product, warningMode) {
   ${descTspans}
   <text x="250" y="${150 + descLines.length * 22 + 34}" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle" fill="${INK}">${product.omitAbv ? escapeXml(product.netContents) : `${escapeXml(product.netContents)}  |  ${escapeXml(product.abvText)}`}</text>
   <text x="250" y="${150 + descLines.length * 22 + 70}" font-family="Arial, Helvetica, sans-serif" font-size="12" text-anchor="middle" fill="${INK}" opacity="0.7">${escapeXml(product.bottler)}</text>
+  ${product.country ? `<text x="250" y="${150 + descLines.length * 22 + 96}" font-family="Arial, Helvetica, sans-serif" font-size="13" text-anchor="middle" fill="${INK}">Product of ${escapeXml(product.country)}</text>` : ""}
   ${warningBlock}`);
 }
 
@@ -178,12 +179,12 @@ const PRODUCTS = [
   { slug: "cascade-ridge", type: "wine", brand: "CASCADE RIDGE", classType: "Pinot Noir", abv: 13.8, netContents: "750 mL", origin: "Willamette Valley Oregon", bottler: "Produced and bottled by Cascade Ridge Winery Dundee OR", description: "Hand harvested from volcanic soils and aged fourteen months in oak." },
   { slug: "blackwater", type: "spirits", brand: "BLACKWATER RESERVE", classType: "Straight Rye Whiskey", abv: 50.5, netContents: "750 mL", origin: "Lawrenceburg Indiana", bottler: "Distilled and bottled by Blackwater Reserve Lawrenceburg IN", description: "Ninety five percent rye mash bill aged six years in charred oak." },
   { slug: "golden-fields", type: "malt", brand: "GOLDEN FIELDS", classType: "Pilsner", abv: 4.8, netContents: "355 mL", origin: "Fort Collins Colorado", bottler: "Brewed and bottled by Golden Fields Brewery Fort Collins CO", description: "Czech style pilsner lagered for six weeks with Saaz hops." },
-  { slug: "casa-verde", type: "spirits", brand: "CASA VERDE", classType: "Tequila", abv: 40, netContents: "750 mL", origin: "Jalisco Mexico", bottler: "Produced in Mexico and imported by Casa Verde Imports Austin TX", description: "Made from one hundred percent blue weber agave and rested in oak." },
+  { slug: "casa-verde", type: "spirits", country: "Mexico", brand: "CASA VERDE", classType: "Tequila", abv: 40, netContents: "750 mL", origin: "Jalisco Mexico", bottler: "Produced in Mexico and imported by Casa Verde Imports Austin TX", description: "Made from one hundred percent blue weber agave and rested in oak." },
   { slug: "north-shore", type: "wine", brand: "NORTH SHORE CELLARS", classType: "Riesling", abv: 11.5, netContents: "750 mL", origin: "Finger Lakes New York", bottler: "Produced and bottled by North Shore Cellars Geneva NY", description: "Off dry with bright acidity from cool climate slate soils." },
   { slug: "saltmarsh", type: "spirits", brand: "SALTMARSH", classType: "Rum", abv: 43, netContents: "700 mL", origin: "Charleston South Carolina", bottler: "Distilled and bottled by Saltmarsh Rum Works Charleston SC", description: "Pot distilled from blackstrap molasses and aged four years." },
   { slug: "wild-ferment", type: "malt", brand: "WILD FERMENT", classType: "Sour Ale", abv: 5.6, netContents: "375 mL", origin: "Hood River Oregon", bottler: "Brewed and bottled by Wild Ferment Brewing Hood River OR", description: "Spontaneously fermented and aged in oak foeders for two years." },
   { slug: "monteleone", type: "wine", brand: "MONTELEONE", classType: "Sparkling Wine", abv: 12, netContents: "750 mL", origin: "Sonoma County California", bottler: "Produced and bottled by Monteleone Sparkling Sonoma CA", description: "Traditional method with thirty months on the lees before disgorging." },
-  { slug: "kestrel-hill", type: "spirits", brand: "KESTREL HILL", classType: "Scotch Whisky", abv: 46, netContents: "700 mL", origin: "Speyside Scotland", bottler: "Distilled in Scotland and imported by Kestrel Hill Imports Boston MA", description: "Single malt matured in sherry casks and bottled without chill filtering." },
+  { slug: "kestrel-hill", type: "spirits", country: "Scotland", brand: "KESTREL HILL", classType: "Scotch Whisky", abv: 46, netContents: "700 mL", origin: "Speyside Scotland", bottler: "Distilled in Scotland and imported by Kestrel Hill Imports Boston MA", description: "Single malt matured in sherry casks and bottled without chill filtering." },
 ];
 
 const bySlug = Object.fromEntries(PRODUCTS.map((p) => [p.slug, p]));
@@ -329,6 +330,10 @@ const ROWS = [
   { product: "golden-fields", warning: "ok", images: "front-only", perturbation: "none" },
   { product: "kestrel-hill", warning: "ok", images: "front-only", perturbation: "abvWrong" },
 
+  // --- Alcohol content written the way the assessment's sample writes it ---
+  { product: "old-tom", warning: "ok", images: "front-back", perturbation: "none", showProof: true },
+  { product: "blackwater", warning: "ok", images: "front-back", perturbation: "none", showProof: true },
+
   // --- Alcohol content that the label is allowed to leave off ---
   // 27 CFR 7.63: a malt beverage need not state its ABV, and 27 CFR 4.34
   // lets a 7-14% wine use the "table wine" designation instead. Both of
@@ -384,7 +389,8 @@ function triageOf(statuses) {
 await rm(outDir, { recursive: true, force: true });
 await mkdir(imageDir, { recursive: true });
 
-const csvRows = [["filenames", "brand_name", "class_type", "abv_percent", "net_contents"]];
+const LEAD_IN = /^(?:distilled and bottled by|produced and bottled by|brewed and (?:bottled|canned) by|distilled in \w+ and imported by|produced in \w+ and imported by|bottled by|imported by|brewed by)\s+/i;
+const csvRows = [["filenames", "brand_name", "class_type", "abv_percent", "net_contents", "bottler_info", "country_of_origin"]];
 const expectedRows = [];
 let imagesWritten = 0;
 
@@ -393,7 +399,14 @@ for (const [i, row] of ROWS.entries()) {
   if (!product) throw new Error(`Unknown product slug: ${row.product}`);
   const id = String(i + 1).padStart(2, "0");
   const stem = `${id}-${product.slug}`;
-  const labelProduct = { ...product, abvText: `${product.abv}% Alc./Vol.`, omitAbv: Boolean(row.omitAbv) };
+  // The assessment's own sample label writes the alcohol content as
+  // "45% Alc./Vol. (90 Proof)". Proof is twice ABV, and a reader that latched
+  // onto the larger number would report a mismatch on the very label the
+  // assessment asks the app to handle, so it is worth having in the fixture.
+  const abvText = row.showProof
+    ? `${product.abv}% Alc./Vol. (${product.abv * 2} Proof)`
+    : `${product.abv}% Alc./Vol.`;
+  const labelProduct = { ...product, abvText, omitAbv: Boolean(row.omitAbv) };
 
   const files = [];
 
@@ -421,7 +434,15 @@ for (const [i, row] of ROWS.entries()) {
     net_contents: overrides.net_contents ?? product.netContents,
   };
 
-  csvRows.push([files.join(";"), submitted.brand_name, submitted.class_type, String(submitted.abv_percent), submitted.net_contents]);
+  csvRows.push([
+    files.join(";"),
+    submitted.brand_name,
+    submitted.class_type,
+    String(submitted.abv_percent),
+    submitted.net_contents,
+    product.bottler.replace(LEAD_IN, "").trim(),
+    product.country ?? "",
+  ]);
 
   const warn = warningExpectation(row.warning, row.images);
   const abvExpected = abvExpectation(row, product);
@@ -430,6 +451,12 @@ for (const [i, row] of ROWS.entries()) {
     classType: perturbation.expect.classType ?? "match",
     abvPercent: row.omitAbv ? abvExpected.status : (perturbation.expect.abvPercent ?? "match"),
     netContents: perturbation.expect.netContents ?? "match",
+    // Every label carries a name and address, and the sheet declares the same
+    // one without the lead-in phrase, so this should always reconcile.
+    bottlerInfo: "match",
+    // Only the two imported products declare a country of origin, and only a
+    // declared one is checked at all.
+    countryOfOrigin: product.country ? "match" : null,
     warningStatement: warn.status,
   };
 
@@ -488,12 +515,12 @@ Field statuses: \`match\`, \`review\` (needs a closer look), \`mismatch\`,
 \`missing\` (absent from a label we could see), \`not_shown\` (we were never
 shown the side it would be on).
 
-| # | Brand | Imgs | Expected triage | Brand | Class/Type | ABV | Net | Warning | Why |
-|---|-------|------|-----------------|-------|------------|-----|-----|---------|-----|
+| # | Brand | Imgs | Expected triage | Brand | Class/Type | ABV | Net | Bottler | Origin | Warning | Why |
+|---|-------|------|-----------------|-------|------------|-----|-----|---------|--------|---------|-----|
 ${expectedRows
   .map(
     (r) =>
-      `| ${r.id} | ${r.brand} | ${r.images} | **${r.triage}** | ${r.fields.brandName} | ${r.fields.classType} | ${r.fields.abvPercent} | ${r.fields.netContents} | ${r.fields.warningStatement} | ${r.notes.join(" ")} |`
+      `| ${r.id} | ${r.brand} | ${r.images} | **${r.triage}** | ${r.fields.brandName} | ${r.fields.classType} | ${r.fields.abvPercent} | ${r.fields.netContents} | ${r.fields.bottlerInfo} | ${r.fields.countryOfOrigin ?? "not checked"} | ${r.fields.warningStatement} | ${r.notes.join(" ")} |`
   )
   .join("\n")}
 `;

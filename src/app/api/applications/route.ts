@@ -47,8 +47,12 @@ export async function POST(request: NextRequest) {
 
   // Optional: when absent the type is inferred from the class/type
   // designation at comparison time.
+  const bottlerInfo = typeof body.bottlerInfo === "string" && body.bottlerInfo.trim() ? body.bottlerInfo.trim() : null;
+  // A declared country of origin is what marks the product as an import.
+  const countryOfOrigin =
+    typeof body.countryOfOrigin === "string" && body.countryOfOrigin.trim() ? body.countryOfOrigin.trim() : null;
   const beverageType = isBeverageType(body.beverageType) ? body.beverageType : null;
-  const data: ApplicationData = { brandName, classType, abvPercent, netContents, beverageType };
+  const data: ApplicationData = { brandName, classType, abvPercent, netContents, bottlerInfo, countryOfOrigin, beverageType };
 
   // A row submitted from a guided import carries its batch id. It is queued
   // and deliberately NOT checked yet - not inline, and not in the background

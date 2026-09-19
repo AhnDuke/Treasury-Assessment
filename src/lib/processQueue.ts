@@ -28,6 +28,8 @@ async function processOne(application: ApplicationRecord): Promise<void> {
       classType: application.classType,
       abvPercent: application.abvPercent,
       netContents: application.netContents,
+      bottlerInfo: application.bottlerInfo,
+      countryOfOrigin: application.countryOfOrigin,
       beverageType: application.beverageType,
     });
     await updateApplicationResult(application.id, {

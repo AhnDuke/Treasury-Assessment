@@ -22,6 +22,8 @@ function toApplicationRecord(row: any): ApplicationRecord {
     classType: row.class_type,
     abvPercent: Number(row.abv_percent),
     netContents: row.net_contents,
+    bottlerInfo: row.bottler_info ?? null,
+    countryOfOrigin: row.country_of_origin ?? null,
     beverageType: row.beverage_type ?? null,
     images: row.images ?? [],
     status: row.status,
@@ -46,8 +48,8 @@ export async function createApplication(
 ): Promise<ApplicationRecord> {
   const db = getSql();
   const rows = await db`
-    INSERT INTO applications (import_batch_id, brand_name, class_type, abv_percent, net_contents, beverage_type, images, status)
-    VALUES (${importBatchId}, ${data.brandName}, ${data.classType}, ${data.abvPercent}, ${data.netContents}, ${data.beverageType ?? null}, ${JSON.stringify(images)}, ${status})
+    INSERT INTO applications (import_batch_id, brand_name, class_type, abv_percent, net_contents, bottler_info, country_of_origin, beverage_type, images, status)
+    VALUES (${importBatchId}, ${data.brandName}, ${data.classType}, ${data.abvPercent}, ${data.netContents}, ${data.bottlerInfo ?? null}, ${data.countryOfOrigin ?? null}, ${data.beverageType ?? null}, ${JSON.stringify(images)}, ${status})
     RETURNING *
   `;
   return toApplicationRecord(rows[0]);
