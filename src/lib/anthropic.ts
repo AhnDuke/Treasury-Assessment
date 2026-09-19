@@ -163,7 +163,15 @@ const SHARED_INSTRUCTIONS =
 
 export async function extractLabelData(images: EncodedImage[]): Promise<ExtractedLabelData> {
   const input = await runExtractionCall(MODEL, EXTRACTION_TOOL, images, SHARED_INSTRUCTIONS);
-  return input as unknown as ExtractedLabelData;
+  const data = input as unknown as ExtractedLabelData;
+  return {
+    ...data,
+    // Coerced deliberately, not left to fall through as `undefined`: if the
+    // model ever omits this field, the safe default is "no back label
+    // visible" (an evidence gap gets reported, not a fabricated violation),
+    // and Boolean(...) makes that default explicit rather than accidental.
+    backLabelVisible: Boolean(data.backLabelVisible),
+  };
 }
 
 /**

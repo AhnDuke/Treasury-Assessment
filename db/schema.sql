@@ -2,6 +2,11 @@
 -- one at a time or through a bulk import. A "batch" is just the set of rows
 -- sharing an import_batch_id — there's no separate batches table to keep in
 -- sync.
+--
+-- The runner (scripts/migrate.mjs) executes these statements one at a time
+-- with no enclosing transaction, so an interrupted run can leave the schema
+-- part-migrated. Re-running this file is the recovery, which is why every
+-- statement below is idempotent.
 CREATE TABLE IF NOT EXISTS applications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   import_batch_id UUID,
@@ -100,6 +105,12 @@ ALTER TABLE applications DROP COLUMN IF EXISTS overall_status;
 -- check flagged is the most useful signal this system produces — it is the
 -- calibration data for the matching thresholds, which are currently
 -- reasonable defaults rather than anything tuned against real adjudications.
+--
+-- Same asymmetry as triage_status above, and the same reason: a fresh
+-- database gets the CHECK (decision IN ('approved', 'rejected')) constraint
+-- from the CREATE TABLE, an existing database gets this bare ALTER instead,
+-- because Postgres has no `ADD CONSTRAINT IF NOT EXISTS` and this file must
+-- stay re-runnable.
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS decision TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS decision_reason TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS decided_at TIMESTAMPTZ;

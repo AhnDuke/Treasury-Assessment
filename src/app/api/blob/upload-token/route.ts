@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
   }
 
-  if (typeof parsed !== "object" || parsed === null) {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
   }
   const body = parsed as HandleUploadBody;

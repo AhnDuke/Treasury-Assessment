@@ -15,6 +15,11 @@ export const FIELD_STATUS_META: Record<
   not_shown: { glyph: "–", label: "Not shown", className: "text-ink-muted bg-paper-muted border-border", edgeClassName: "border-l-border" },
 };
 
+// Note: FieldStatus and TriageStatus both have a "review" member, but they
+// mean different things at different levels — a single field needing a
+// closer look, versus a whole application needing attention. The labels
+// below correctly diverge ("Needs review" vs "Needs attention"), so this is
+// a trip hazard for a developer reading the two maps, not a user-facing bug.
 export const TRIAGE_STATUS_META: Record<
   TriageStatus,
   { glyph: string; label: string; shortLabel: string; className: string; edgeClassName: string }
