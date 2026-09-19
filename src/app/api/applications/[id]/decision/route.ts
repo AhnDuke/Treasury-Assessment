@@ -15,19 +15,24 @@ export const runtime = "nodejs";
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
 
-  let payload: Record<string, unknown>;
+  let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+    return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
   }
 
-  const decision = payload.decision;
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
+  }
+  const body = payload as Record<string, unknown>;
+
+  const decision = body.decision;
   if (decision !== "approved" && decision !== "rejected") {
     return NextResponse.json({ error: 'Decision must be either "approved" or "rejected".' }, { status: 400 });
   }
 
-  const reason = typeof payload.reason === "string" ? payload.reason.trim() : "";
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
   if (decision === "rejected" && !reason) {
     return NextResponse.json({ error: "A rejection needs a reason." }, { status: 400 });
   }

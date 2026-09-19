@@ -18,23 +18,28 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let payload: Record<string, unknown>;
+  let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+    return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
   }
 
-  const brandName = typeof payload.brandName === "string" ? payload.brandName.trim() : "";
-  const classType = typeof payload.classType === "string" ? payload.classType.trim() : "";
-  const netContents = typeof payload.netContents === "string" ? payload.netContents.trim() : "";
-  const abvPercent = typeof payload.abvPercent === "number" ? payload.abvPercent : parseFloat(String(payload.abvPercent));
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
+  }
+  const body = payload as Record<string, unknown>;
+
+  const brandName = typeof body.brandName === "string" ? body.brandName.trim() : "";
+  const classType = typeof body.classType === "string" ? body.classType.trim() : "";
+  const netContents = typeof body.netContents === "string" ? body.netContents.trim() : "";
+  const abvPercent = typeof body.abvPercent === "number" ? body.abvPercent : parseFloat(String(body.abvPercent));
 
   if (!brandName || !classType || !netContents || Number.isNaN(abvPercent)) {
     return NextResponse.json({ error: "Please fill in brand name, class/type, ABV, and net contents." }, { status: 400 });
   }
 
-  const imageResult = validateImages(payload.images);
+  const imageResult = validateImages(body.images);
   if ("error" in imageResult) {
     return NextResponse.json({ error: imageResult.error }, { status: 400 });
   }

@@ -29,7 +29,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as HandleUploadBody;
+  let body: HandleUploadBody;
+  try {
+    body = (await request.json()) as HandleUploadBody;
+  } catch {
+    return NextResponse.json({ error: "The request body was missing or not in the expected format." }, { status: 400 });
+  }
 
   try {
     const result = await handleUpload({
