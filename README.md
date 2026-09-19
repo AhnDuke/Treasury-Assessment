@@ -34,14 +34,23 @@ Other scripts: `npm run build` / `npm start` (production build), `npm test` (uni
 
 ## How It Works
 
-**Review queue** (the default view) — a list of every application that's been added, with its status (pending / processing / done / cancelled / error) and, once done, its overall result (approved / flagged / rejected). Click one to see the full field-by-field breakdown; delete ones you don't need.
+**Reviewing applications** (the default view) — every application that's been added, sorted into five tabs by where it is in the workflow:
+
+- **Clean matches** — the automated check found nothing wrong. Still needs an agent's sign-off.
+- **Needs attention** — one or more fields didn't match, or couldn't be confirmed from the photos supplied.
+- **Approved** / **Rejected** — already signed off, with who decided what and why.
+- **Not ready** — still processing, cancelled, or failed. These stay visible on purpose: an application that disappears from every tab never gets adjudicated.
+
+Search by brand or class/type and sort the list, then open an application to review it. The review window puts the label photos and the application fields side by side — each field marked as matching, needing a closer look, disagreeing, or not visible in the photos — and ends in **Approve** or **Reject**. A rejection records why; an approval doesn't need one.
+
+The automated check never decides anything. It sorts the queue and marks the fields worth looking at; a person signs off on every application.
 
 **Add applications** — two ways to get applications into the queue:
 
-- **Single** — fill in the four application fields and attach 2–5 label photos (front, back, and any others). Processed immediately (it's one item), and the result is saved to the queue right away.
+- **Single** — fill in the four application fields and attach 1–3 label photos (front, back, or a single composite of both). Processed immediately (it's one item), and the result is saved to the queue right away.
 - **Import** — upload a spreadsheet (CSV or XLSX) of application data alongside a batch of label images. Each row's `filenames` column lists that application's photos separated by semicolons (`front.jpg;back.jpg`); the legacy single `filename` column still parses. Rows are queued as `pending` and processed in the background with bounded concurrency, so a 300-row import doesn't fire 300 concurrent Claude calls at once. An in-progress import shows live progress in the queue, with buttons to resume or cancel.
 
-**Why at least two photos:** the Government Warning is nearly always on the *back* label. Checking a single front photo produced false "warning missing" reports, because the text genuinely wasn't in the image being read.
+**Photos and what can be checked from them:** one to three per application. One is enough when it's a composite showing front and back together, which is why the minimum isn't two — image *count* never told us what was actually photographed. Instead the extraction call reports whether any image shows a face other than the front, and the warning check branches on it: no warning found with a back view present is a violation; no warning found with no back view present is "not shown", which asks for a better photo instead of reporting a defect. The interviews name that as a real step (*"if an agent can't read the label they just reject it and ask for a better image"*), and conflating it with a violation is what produced the false "missing warning" reports.
 
 **Class/type** is a searchable field backed by TTB's standards of identity ([src/lib/classTypes.ts](src/lib/classTypes.ts)) — a representative subset of 27 CFR Parts 4/5/7, not the exhaustive list, so free text is still accepted rather than blocking an agent on a designation we didn't enumerate.
 
@@ -56,6 +65,7 @@ The Government Warning text is fixed by federal statute (27 CFR 16.21), so it is
 ## Approach & Technical Choices
 
 - **The review queue is the product; single/import are just how applications get into it.** The interviews describe agents pulling up an *existing* application to check, not typing one in from scratch each time — an earlier version of this prototype got that backwards (a stateless form that verified and forgot), which is why persistence and a real queue came in.
+- **The automated check produces a triage signal, not a verdict.** Its three values (`clean` / `review` / `discrepancy`) are deliberately different words from an agent's `approved` / `rejected`, because at one point they weren't — the schema used "approved" for both, which would have put two unrelated meanings of the same word in front of an audience the interviews benchmark against someone who *"just learned to video call her grandkids last year."* Every application is signed off by a person; the AI's job is to decide what to look at first, which is the actual complaint in the interviews (*"they're drowning in routine stuff"*).
 - **Neon Postgres (via the Vercel Marketplace integration) for application records, Vercel Blob for the label images.** "Vercel Postgres" as a standalone product was retired in favor of Neon; the current recommended driver is `@neondatabase/serverless`, used here via its HTTP query interface (no persistent connection to manage, which matters in a serverless request path — see the earlier Vercel/Fluid-compute discussion about connection pooling). Application rows use plain SQL, no ORM, to keep setup and build time down.
 - **Label photos upload from the browser straight to Blob, not through our API.** Vercel Functions cap request bodies at 4.5MB, so routing several multi-megabyte phone photos through an API route would 413 before reaching any of our code — the earlier server-upload flow had this latent bug and only survived testing because the synthetic labels are ~28KB. A token route ([src/app/api/blob/upload-token/route.ts](src/app/api/blob/upload-token/route.ts)) issues short-lived upload tokens and enforces the content-type and size caps at issuance, so the limits don't depend on trusting the client.
 - **The warning check distinguishes a bad transcription from a bad label.** An exact-match-or-fail comparison treated a single misread character in ~250 characters of small print as a wording violation, which manufactured false "incorrect warning" reports. It's now tiered: identical → match; ≥97% identical → needs review, described as a likely reading artifact; below that → mismatch. Nothing short of identical is auto-approved, so strictness is preserved — the change is that a measurement error is no longer reported as a label defect.
@@ -79,7 +89,8 @@ The Government Warning text is fixed by federal statute (27 CFR 16.21), so it is
 - **The upload-token endpoint is unauthenticated.** Vercel's guidance is to authenticate the user inside `onBeforeGenerateToken`; this prototype has no auth, so anyone who finds that endpoint can write to the Blob store within the type/size caps. That's a storage-abuse and cost vector, not only a data-exposure one — it's the one place where the no-auth posture has a consequence beyond visibility, and it would be the first thing to close in a real deployment.
 - **No auth, one shared queue.** Anyone with the URL sees and can add to/delete from the same queue — fine for a single-reviewer prototype demo; a real multi-agent deployment would need accounts and permissions, plus the PII/retention review the IT stakeholder flagged.
 - **Deployed on public infrastructure (Vercel) calling a public API (Anthropic).** The stakeholder interview mentioned TTB's real network blocks outbound calls to ML endpoints — a production deployment inside that network would need an on-prem or VPC-hosted model rather than a public API call. Not a concern for this prototype, since it isn't deployed inside TTB's network.
-- **Matching thresholds (fuzzy-match similarity, ABV tolerance, net-contents tolerance) are reasonable defaults, not calibrated against real TTB adjudication data.**
+- **Matching thresholds (fuzzy-match similarity, ABV tolerance, net-contents tolerance) are reasonable defaults, not calibrated against real TTB adjudication data.** Each decision now stores which fields the automated check had flagged at the moment of sign-off, so an agent approving something the check flagged is recorded as exactly that — which is the data you'd tune these thresholds against once real reviewers have used it.
+- **No component tests.** The comparison, matching, escalation, and spreadsheet logic have unit tests; the React components don't. Adding a browser test harness wasn't a good use of a two-day budget relative to covering the logic that decides outcomes, so the UI was verified by hand against the checklist in the implementation plan.
 
 ## Tech Stack
 
