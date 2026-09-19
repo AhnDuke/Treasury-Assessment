@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { FileDropzone } from "./FileDropzone";
 import { describeFileProblem, uploadLabelImages } from "@/lib/uploadImages";
+import { MAX_IMAGES_PER_APPLICATION } from "@/lib/types";
 
 type Status = "idle" | "uploading" | "loading" | "done" | "error";
 
@@ -67,8 +68,9 @@ export function ImportApplications({ onViewQueue }: { onViewQueue: () => void })
         <p>
           Upload a spreadsheet (CSV or XLSX) of application data alongside the label images. Each row&apos;s{" "}
           <code className="bg-paper px-1 py-0.5">filenames</code> column lists that application&apos;s photos separated by
-          semicolons — at least two (front and back), e.g.{" "}
-          <code className="bg-paper px-1 py-0.5">front.jpg;back.jpg</code>. Imported applications are queued and processed in
+          semicolons — up to {MAX_IMAGES_PER_APPLICATION}, e.g.{" "}
+          <code className="bg-paper px-1 py-0.5">front.jpg;back.jpg</code>. Include the back label if the Government Warning isn&apos;t
+          visible on the front. Imported applications are queued and processed in
           the background — check the review queue for progress.
         </p>
         <a href="/sample-batch-template.csv" download className="mt-2 inline-block font-medium text-seal hover:underline">

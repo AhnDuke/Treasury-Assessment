@@ -6,7 +6,7 @@ import { MAX_IMAGES_PER_APPLICATION, MIN_IMAGES_PER_APPLICATION, type LabelImage
 
 export function describeImageCountProblem(count: number): string | null {
   if (count < MIN_IMAGES_PER_APPLICATION) {
-    return `Add at least ${MIN_IMAGES_PER_APPLICATION} photos (front and back).`;
+    return "Add at least one label photo.";
   }
   if (count > MAX_IMAGES_PER_APPLICATION) {
     return `Up to ${MAX_IMAGES_PER_APPLICATION} photos per application.`;

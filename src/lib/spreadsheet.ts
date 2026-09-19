@@ -65,7 +65,7 @@ export function rowToImportRow(row: Record<string, string>, rowIndex: number): {
   if (filenames.length === 0) return { error: `Row ${rowIndex}: missing "filenames".` };
   const label = filenames.join(", ");
   if (filenames.length < MIN_IMAGES_PER_APPLICATION) {
-    return { error: `Row ${rowIndex} (${label}): needs at least ${MIN_IMAGES_PER_APPLICATION} images (front and back), separated by ";".` };
+    return { error: `Row ${rowIndex} (${label}): needs at least ${MIN_IMAGES_PER_APPLICATION} image(s), separated by ";".` };
   }
   if (filenames.length > MAX_IMAGES_PER_APPLICATION) {
     return { error: `Row ${rowIndex} (${label}): more than ${MAX_IMAGES_PER_APPLICATION} images.` };

@@ -19,14 +19,19 @@ describe("rowToImportRow", () => {
     expect(result).toEqual({ error: 'Row 3: missing "filenames".' });
   });
 
-  it("requires at least two images, since the warning is usually on the back", () => {
-    const result = rowToImportRow({ ...base, filenames: "front.jpg" }, 4);
-    expect("error" in result && result.error).toContain("at least 2 images");
+  it("accepts a single filename, which may be a composite front-and-back photo", () => {
+    const result = rowToImportRow({ ...base, filenames: "front-and-back.jpg" }, 4);
+    expect(result).toEqual({
+      row: {
+        filenames: ["front-and-back.jpg"],
+        data: { brandName: "OLD TOM DISTILLERY", classType: "Bourbon", abvPercent: 45, netContents: "750 mL" },
+      },
+    });
   });
 
-  it("rejects more than five images", () => {
-    const result = rowToImportRow({ ...base, filenames: "a.jpg;b.jpg;c.jpg;d.jpg;e.jpg;f.jpg" }, 5);
-    expect("error" in result && result.error).toContain("more than 5 images");
+  it("rejects more than three images", () => {
+    const result = rowToImportRow({ ...base, filenames: "a.jpg;b.jpg;c.jpg;d.jpg" }, 5);
+    expect("error" in result && result.error).toContain("more than 3 images");
   });
 
   it("errors when a required application field is missing", () => {

@@ -57,8 +57,12 @@ export interface LabelImage {
   contentType: AcceptedImageType;
 }
 
-export const MIN_IMAGES_PER_APPLICATION = 2;
-export const MAX_IMAGES_PER_APPLICATION = 5;
+// One image is allowed because an applicant may supply a single composite
+// photo showing front and back together. A front-only photo is caught by the
+// evidence-gap check in comparison.ts, not by a count rule — the count never
+// told us what was actually photographed.
+export const MIN_IMAGES_PER_APPLICATION = 1;
+export const MAX_IMAGES_PER_APPLICATION = 3;
 
 /** A persisted application row (Neon) - the unit the review queue works on. */
 export interface ApplicationRecord {

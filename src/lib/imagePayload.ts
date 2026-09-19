@@ -9,7 +9,7 @@ import { MAX_IMAGES_PER_APPLICATION, MIN_IMAGES_PER_APPLICATION, type LabelImage
 export function validateImages(value: unknown): { images: LabelImage[] } | { error: string } {
   if (!Array.isArray(value)) return { error: "Missing label images." };
   if (value.length < MIN_IMAGES_PER_APPLICATION) {
-    return { error: `Add at least ${MIN_IMAGES_PER_APPLICATION} label photos (front and back).` };
+    return { error: "Add at least one label photo." };
   }
   if (value.length > MAX_IMAGES_PER_APPLICATION) {
     return { error: `Up to ${MAX_IMAGES_PER_APPLICATION} label photos per application.` };

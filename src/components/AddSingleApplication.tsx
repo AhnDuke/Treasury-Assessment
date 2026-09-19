@@ -5,7 +5,7 @@ import { FileDropzone } from "./FileDropzone";
 import { ErrorCard, ResultsCard } from "./ResultsCard";
 import { ALL_CLASS_TYPES } from "@/lib/classTypes";
 import { describeFileProblem, describeImageCountProblem, uploadLabelImages } from "@/lib/uploadImages";
-import { MAX_IMAGES_PER_APPLICATION, MIN_IMAGES_PER_APPLICATION, type ApplicationRecord } from "@/lib/types";
+import { MAX_IMAGES_PER_APPLICATION, type ApplicationRecord } from "@/lib/types";
 
 const initialFormState = {
   brandName: "",
@@ -123,8 +123,8 @@ export function AddSingleApplication({ onViewQueue }: { onViewQueue: () => void 
             2. Label photos ({images.length}/{MAX_IMAGES_PER_APPLICATION})
           </h2>
           <p className="mb-3 text-sm text-ink-muted">
-            At least {MIN_IMAGES_PER_APPLICATION} — front and back. The government warning is usually on the back, so it can&apos;t be
-            checked without it.
+            Add up to {MAX_IMAGES_PER_APPLICATION} photos. Include the back label if the Government Warning isn&apos;t
+            visible on the front — one photo showing both sides works too.
           </p>
           {images.length < MAX_IMAGES_PER_APPLICATION && (
             <FileDropzone
