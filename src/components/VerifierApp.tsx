@@ -2,8 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { AddSingleApplication } from "./AddSingleApplication";
-import { ApplicationQueue } from "./ApplicationQueue";
 import { ImportApplications } from "./ImportApplications";
+import { ReviewQueue } from "./ReviewQueue";
 import { ThemeToggle } from "./ThemeToggle";
 
 type View = "queue" | "add";
@@ -19,7 +19,7 @@ export function VerifierApp() {
         <div>
           <h1 className="text-2xl font-bold text-ink sm:text-3xl">TTB label verification</h1>
           <p className="mt-2 max-w-prose text-ink-muted">
-            Review submitted applications against their label photos, or add new ones to the queue.
+            Check each application against its label photos, then approve or reject it.
           </p>
         </div>
         <ThemeToggle />
@@ -27,7 +27,7 @@ export function VerifierApp() {
 
       <div className="mb-8 flex gap-6 border-b border-border">
         <TabButton active={view === "queue"} onClick={() => setView("queue")}>
-          Review queue
+          Review applications
         </TabButton>
         <TabButton active={view === "add"} onClick={() => setView("add")}>
           Add applications
@@ -35,7 +35,7 @@ export function VerifierApp() {
       </div>
 
       {view === "queue" ? (
-        <ApplicationQueue />
+        <ReviewQueue />
       ) : (
         <div className="space-y-6">
           <div className="inline-flex border border-border">
