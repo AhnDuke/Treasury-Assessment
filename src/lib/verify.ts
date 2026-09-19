@@ -1,5 +1,5 @@
 import { extractLabelData, getSecondOpinion, type EncodedImage } from "./anthropic";
-import { compareLabelToApplication, determineOverallStatus } from "./comparison";
+import { compareLabelToApplication, determineTriageStatus } from "./comparison";
 import { applySecondOpinions, fieldsNeedingSecondOpinion } from "./escalation";
 import type { ApplicationData, VerificationOutcome } from "./types";
 
@@ -26,5 +26,5 @@ export async function runVerification(images: EncodedImage[], expected: Applicat
     }
   }
 
-  return { overallStatus: determineOverallStatus(fields), fields };
+  return { triageStatus: determineTriageStatus(fields), fields };
 }

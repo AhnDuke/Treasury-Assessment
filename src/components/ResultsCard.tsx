@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
-import { FIELD_STATUS_META, OVERALL_STATUS_META } from "@/lib/statusMeta";
-import type { FieldResult, OverallStatus } from "@/lib/types";
+import { FIELD_STATUS_META, TRIAGE_STATUS_META } from "@/lib/statusMeta";
+import type { FieldResult, TriageStatus } from "@/lib/types";
 
 interface ResultsCardProps {
-  overallStatus: OverallStatus;
+  triageStatus: TriageStatus;
   fields: FieldResult[];
   footer?: ReactNode;
 }
 
-export function ResultsCard({ overallStatus, fields, footer }: ResultsCardProps) {
-  const overall = OVERALL_STATUS_META[overallStatus];
+export function ResultsCard({ triageStatus, fields, footer }: ResultsCardProps) {
+  const overall = TRIAGE_STATUS_META[triageStatus];
 
   return (
     <div className="animate-reveal space-y-px">

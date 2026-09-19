@@ -38,13 +38,18 @@ export interface FieldResult {
   secondOpinion?: SecondOpinion;
 }
 
-export type OverallStatus = "approved" | "flagged" | "rejected";
+/**
+ * What the automated check thinks of an application — a triage signal used to
+ * sort the queue, never a decision. A person's approve/reject is recorded
+ * separately as ReviewDecision, and the two deliberately use different words.
+ */
+export type TriageStatus = "clean" | "review" | "discrepancy";
 
 export type AcceptedImageType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
 /** Result of the extract -> compare -> escalate pipeline, before persistence. */
 export interface VerificationOutcome {
-  overallStatus: OverallStatus;
+  triageStatus: TriageStatus;
   fields: FieldResult[];
 }
 
@@ -74,7 +79,7 @@ export interface ApplicationRecord {
   netContents: string;
   images: LabelImage[];
   status: ApplicationStatus;
-  overallStatus: OverallStatus | null;
+  triageStatus: TriageStatus | null;
   fields: FieldResult[] | null;
   errorMessage: string | null;
   createdAt: string;

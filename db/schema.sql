@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS applications (
 
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'processing', 'done', 'cancelled', 'error')),
-  overall_status TEXT
-    CHECK (overall_status IN ('approved', 'flagged', 'rejected')),
+  triage_status TEXT
+    CHECK (triage_status IN ('clean', 'review', 'discrepancy')),
   fields_json JSONB,
   error_message TEXT,
 
@@ -58,3 +58,30 @@ WHERE images IS NULL AND to_jsonb(applications) ->> 'image_url' IS NOT NULL;
 ALTER TABLE applications DROP COLUMN IF EXISTS image_url;
 ALTER TABLE applications DROP COLUMN IF EXISTS image_filename;
 ALTER TABLE applications DROP COLUMN IF EXISTS image_content_type;
+
+-- Migration: the automated verdict is a triage signal, not a decision.
+-- "approved"/"rejected" now belong exclusively to a human reviewer's
+-- decision (added below), so the automated column is renamed and revalued to
+-- keep the two vocabularies from colliding in the UI.
+--
+-- Note the asymmetry: a fresh database gets triage_status from the CREATE
+-- TABLE above, with its CHECK constraint. An existing database gets it from
+-- the ALTER here, without one. Postgres has no `ADD CONSTRAINT IF NOT
+-- EXISTS`, and this file must stay re-runnable, so the constraint is not
+-- retrofitted. Writes go through updateApplicationResult in src/lib/db.ts,
+-- which is typed to TriageStatus.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS triage_status TEXT;
+
+-- Reads overall_status through to_jsonb(applications) rather than naming it,
+-- for the same reason as the images backfill above: a direct reference stops
+-- parsing once the DROP below has run, which would make this file fail on
+-- every subsequent migration. See Task 0.
+UPDATE applications
+SET triage_status = CASE to_jsonb(applications) ->> 'overall_status'
+  WHEN 'approved' THEN 'clean'
+  WHEN 'flagged' THEN 'review'
+  WHEN 'rejected' THEN 'discrepancy'
+END
+WHERE triage_status IS NULL AND to_jsonb(applications) ->> 'overall_status' IS NOT NULL;
+
+ALTER TABLE applications DROP COLUMN IF EXISTS overall_status;

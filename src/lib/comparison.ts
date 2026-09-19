@@ -1,6 +1,6 @@
 import { STATUTORY_WARNING_TEXT } from "./warningStatement";
 import { collapseWhitespace, normalizeForComparison, similarityRatio } from "./textMatch";
-import type { ApplicationData, ExtractedLabelData, FieldResult, OverallStatus } from "./types";
+import type { ApplicationData, ExtractedLabelData, FieldResult, TriageStatus } from "./types";
 
 // Below this similarity ratio (post case/punctuation normalization) a text
 // field is treated as a real mismatch rather than a formatting difference.
@@ -209,9 +209,9 @@ export function compareLabelToApplication(expected: ApplicationData, extracted: 
   ];
 }
 
-export function determineOverallStatus(fields: FieldResult[]): OverallStatus {
-  if (fields.length === 0) return "rejected";
-  if (fields.some((f) => f.status === "mismatch" || f.status === "missing")) return "rejected";
-  if (fields.some((f) => f.status === "review" || f.status === "not_shown")) return "flagged";
-  return "approved";
+export function determineTriageStatus(fields: FieldResult[]): TriageStatus {
+  if (fields.length === 0) return "discrepancy";
+  if (fields.some((f) => f.status === "mismatch" || f.status === "missing")) return "discrepancy";
+  if (fields.some((f) => f.status === "review" || f.status === "not_shown")) return "review";
+  return "clean";
 }

@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
       }))
     );
     const outcome = await runVerification(encoded, data);
-    await updateApplicationResult(application.id, { status: "done", overallStatus: outcome.overallStatus, fields: outcome.fields });
-    application = { ...application, status: "done", overallStatus: outcome.overallStatus, fields: outcome.fields };
+    await updateApplicationResult(application.id, { status: "done", triageStatus: outcome.triageStatus, fields: outcome.fields });
+    application = { ...application, status: "done", triageStatus: outcome.triageStatus, fields: outcome.fields };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error during verification.";
     await updateApplicationResult(application.id, { status: "error", errorMessage });

@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { ErrorCard, ResultsCard } from "./ResultsCard";
-import { OVERALL_STATUS_META } from "@/lib/statusMeta";
+import { TRIAGE_STATUS_META } from "@/lib/statusMeta";
 import type { ApplicationRecord, ApplicationStatus } from "@/lib/types";
 
 type FilterKey = "all" | "in_progress" | "needs_review" | "approved" | "other";
@@ -10,8 +10,8 @@ type FilterKey = "all" | "in_progress" | "needs_review" | "approved" | "other";
 const FILTERS: { key: FilterKey; label: string; test: (a: ApplicationRecord) => boolean }[] = [
   { key: "all", label: "All", test: () => true },
   { key: "in_progress", label: "In progress", test: (a) => a.status === "pending" || a.status === "processing" },
-  { key: "needs_review", label: "Needs review", test: (a) => a.status === "done" && a.overallStatus !== "approved" },
-  { key: "approved", label: "Approved", test: (a) => a.status === "done" && a.overallStatus === "approved" },
+  { key: "needs_review", label: "Needs review", test: (a) => a.status === "done" && a.triageStatus !== "clean" },
+  { key: "approved", label: "Approved", test: (a) => a.status === "done" && a.triageStatus === "clean" },
   { key: "other", label: "Cancelled / error", test: (a) => a.status === "cancelled" || a.status === "error" },
 ];
 
@@ -23,12 +23,12 @@ const LIFECYCLE_META: Record<Exclude<ApplicationStatus, "done">, { label: string
 };
 
 function StatusBadge({ application }: { application: ApplicationRecord }) {
-  if (application.status === "done" && application.overallStatus) {
-    const meta = OVERALL_STATUS_META[application.overallStatus];
+  if (application.status === "done" && application.triageStatus) {
+    const meta = TRIAGE_STATUS_META[application.triageStatus];
     return (
       <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2 py-0.5 text-sm ${meta.className}`}>
         <span aria-hidden>{meta.glyph}</span>
-        {meta.label.replace(/ —.*/, "")}
+        {meta.shortLabel}
       </span>
     );
   }
@@ -229,7 +229,7 @@ export function ApplicationQueue() {
                           ) : application.status === "error" ? (
                             <ErrorCard message={application.errorMessage ?? "Verification failed."} />
                           ) : (
-                            <ResultsCard overallStatus={application.overallStatus ?? "rejected"} fields={application.fields ?? []} />
+                            <ResultsCard triageStatus={application.triageStatus ?? "discrepancy"} fields={application.fields ?? []} />
                           )}
                         </td>
                       </tr>

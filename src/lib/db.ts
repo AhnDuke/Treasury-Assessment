@@ -1,5 +1,5 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import type { ApplicationData, ApplicationRecord, ApplicationStatus, BatchProgress, FieldResult, LabelImage, OverallStatus } from "./types";
+import type { ApplicationData, ApplicationRecord, ApplicationStatus, BatchProgress, FieldResult, LabelImage, TriageStatus } from "./types";
 
 let sql: NeonQueryFunction<false, false> | null = null;
 
@@ -24,7 +24,7 @@ function toApplicationRecord(row: any): ApplicationRecord {
     netContents: row.net_contents,
     images: row.images ?? [],
     status: row.status,
-    overallStatus: row.overall_status,
+    triageStatus: row.triage_status,
     fields: row.fields_json,
     errorMessage: row.error_message,
     createdAt: row.created_at,
@@ -65,7 +65,7 @@ export async function updateApplicationResult(
   id: string,
   update: {
     status: ApplicationStatus;
-    overallStatus?: OverallStatus | null;
+    triageStatus?: TriageStatus | null;
     fields?: FieldResult[] | null;
     errorMessage?: string | null;
   }
@@ -74,7 +74,7 @@ export async function updateApplicationResult(
   await db`
     UPDATE applications
     SET status = ${update.status},
-        overall_status = ${update.overallStatus ?? null},
+        triage_status = ${update.triageStatus ?? null},
         fields_json = ${update.fields ? JSON.stringify(update.fields) : null},
         error_message = ${update.errorMessage ?? null},
         updated_at = now()

@@ -181,7 +181,7 @@ export function AddSingleApplication({ onViewQueue }: { onViewQueue: () => void 
             <ErrorCard message={application.errorMessage ?? "Verification failed."} />
           ) : (
             <ResultsCard
-              overallStatus={application.overallStatus ?? "rejected"}
+              triageStatus={application.triageStatus ?? "discrepancy"}
               fields={application.fields ?? []}
               footer="Saved to the review queue."
             />
