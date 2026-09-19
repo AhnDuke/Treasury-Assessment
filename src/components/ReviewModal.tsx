@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ErrorCard } from "./ResultsCard";
 import { DECISION_META, FIELD_STATUS_META, TRIAGE_STATUS_META } from "@/lib/statusMeta";
 import type { ApplicationRecord, FieldResult, ReviewDecision } from "@/lib/types";
 
@@ -108,111 +109,121 @@ export function ReviewModal({ application, onClose, onDecided }: ReviewModalProp
 
         <section>
           <h3 className="mb-3 text-sm font-semibold text-ink">Application fields</h3>
-          <div className="border border-border">
-            {fields.map((field, index) => {
-              const meta = FIELD_STATUS_META[field.status];
-              return (
-                <div
-                  key={field.field}
-                  className={`border-l-4 bg-paper p-4 ${meta.edgeClassName} ${index > 0 ? "border-t border-border" : ""}`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium text-ink">{field.label}</span>
-                    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2 py-0.5 text-sm font-medium ${meta.className}`}>
-                      <span aria-hidden>{meta.glyph}</span>
-                      {meta.label}
-                    </span>
+          {application.status === "pending" || application.status === "processing" ? (
+            <p className="text-ink-muted">Still processing — check back shortly.</p>
+          ) : application.status === "cancelled" ? (
+            <p className="text-ink-muted">Import was cancelled before this label was checked.</p>
+          ) : application.status === "error" ? (
+            <ErrorCard message={application.errorMessage ?? "Verification failed."} />
+          ) : (
+            <div className="border border-border">
+              {fields.map((field, index) => {
+                const meta = FIELD_STATUS_META[field.status];
+                return (
+                  <div
+                    key={field.field}
+                    className={`border-l-4 bg-paper p-4 ${meta.edgeClassName} ${index > 0 ? "border-t border-border" : ""}`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-ink">{field.label}</span>
+                      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2 py-0.5 text-sm font-medium ${meta.className}`}>
+                        <span aria-hidden>{meta.glyph}</span>
+                        {meta.label}
+                      </span>
+                    </div>
+                    <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                      <div>
+                        <dt className="text-ink-muted">Submitted on application</dt>
+                        <dd className="wrap-break-word text-ink">{field.expected ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-ink-muted">Found on label</dt>
+                        <dd className="wrap-break-word text-ink">{field.extracted ?? "—"}</dd>
+                      </div>
+                    </dl>
+                    {field.detail && <p className="mt-2 text-sm text-ink-muted">{field.detail}</p>}
+                    {field.secondOpinion && (
+                      <p className="mt-2 border-t border-border pt-2 text-sm text-ink-muted">
+                        Second check:{" "}
+                        {field.secondOpinion.agreesWithFirstPass
+                          ? "a second model read the label the same way."
+                          : `a second model read this as "${field.secondOpinion.extracted ?? "nothing"}" instead — confirm manually.`}
+                      </p>
+                    )}
                   </div>
-                  <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
-                    <div>
-                      <dt className="text-ink-muted">Submitted on application</dt>
-                      <dd className="wrap-break-word text-ink">{field.expected ?? "—"}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-ink-muted">Found on label</dt>
-                      <dd className="wrap-break-word text-ink">{field.extracted ?? "—"}</dd>
-                    </div>
-                  </dl>
-                  {field.detail && <p className="mt-2 text-sm text-ink-muted">{field.detail}</p>}
-                  {field.secondOpinion && (
-                    <p className="mt-2 border-t border-border pt-2 text-sm text-ink-muted">
-                      Second check:{" "}
-                      {field.secondOpinion.agreesWithFirstPass
-                        ? "a second model read the label the same way."
-                        : `a second model read this as "${field.secondOpinion.extracted ?? "nothing"}" instead — confirm manually.`}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       </div>
 
-      <div className="border-t border-border bg-paper-muted p-5">
-        {error && <p className="mb-3 border-l-4 border-reject bg-reject-bg p-3 text-sm text-reject">{error}</p>}
+      {application.status === "done" && (
+        <div className="border-t border-border bg-paper-muted p-5">
+          {error && <p className="mb-3 border-l-4 border-reject bg-reject-bg p-3 text-sm text-reject">{error}</p>}
 
-        {decided ? (
-          <div className="space-y-2">
-            <p className={`inline-flex items-center gap-2 rounded border px-3 py-1 font-semibold ${decided.className}`}>
-              <span aria-hidden>{decided.glyph}</span>
-              {decided.label} on {new Date(application.decidedAt!).toLocaleString()}
-            </p>
-            {application.decisionReason && (
-              <p className="whitespace-pre-line text-sm text-ink-muted">{application.decisionReason}</p>
-            )}
-          </div>
-        ) : rejecting ? (
-          <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-ink">Why is this being rejected?</span>
-              <textarea
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                rows={4}
-                className="w-full border border-border bg-paper p-2 text-ink"
-              />
-            </label>
-            <div className="flex gap-3">
+          {decided ? (
+            <div className="space-y-2">
+              <p className={`inline-flex items-center gap-2 rounded border px-3 py-1 font-semibold ${decided.className}`}>
+                <span aria-hidden>{decided.glyph}</span>
+                {decided.label} on {new Date(application.decidedAt!).toLocaleString()}
+              </p>
+              {application.decisionReason && (
+                <p className="whitespace-pre-line text-sm text-ink-muted">{application.decisionReason}</p>
+              )}
+            </div>
+          ) : rejecting ? (
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-ink">Why is this being rejected?</span>
+                <textarea
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  rows={4}
+                  className="w-full border border-border bg-paper p-2 text-ink"
+                />
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => decide("rejected")}
+                  disabled={busy || !reason.trim()}
+                  className="bg-reject px-4 py-2 font-semibold text-paper disabled:opacity-50"
+                >
+                  {busy ? "Recording…" : "Reject application"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRejecting(false)}
+                  disabled={busy}
+                  className="border border-border px-4 py-2 font-medium text-ink-muted hover:text-ink"
+                >
+                  Back
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => decide("rejected")}
-                disabled={busy || !reason.trim()}
-                className="bg-reject px-4 py-2 font-semibold text-paper disabled:opacity-50"
+                onClick={() => decide("approved")}
+                disabled={busy}
+                className="bg-verified px-4 py-2 font-semibold text-paper disabled:opacity-50"
               >
-                {busy ? "Recording…" : "Reject application"}
+                {busy ? "Recording…" : "Approve application"}
               </button>
               <button
                 type="button"
-                onClick={() => setRejecting(false)}
+                onClick={() => setRejecting(true)}
                 disabled={busy}
-                className="border border-border px-4 py-2 font-medium text-ink-muted hover:text-ink"
+                className="border border-reject px-4 py-2 font-semibold text-reject hover:bg-reject-bg disabled:opacity-50"
               >
-                Back
+                Reject application
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => decide("approved")}
-              disabled={busy}
-              className="bg-verified px-4 py-2 font-semibold text-paper disabled:opacity-50"
-            >
-              {busy ? "Recording…" : "Approve application"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setRejecting(true)}
-              disabled={busy}
-              className="border border-reject px-4 py-2 font-semibold text-reject hover:bg-reject-bg disabled:opacity-50"
-            >
-              Reject application
-            </button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </dialog>
   );
 }

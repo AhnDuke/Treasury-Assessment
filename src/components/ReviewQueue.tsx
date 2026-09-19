@@ -45,7 +45,16 @@ function StatusBadge({ application }: { application: ApplicationRecord }) {
       </span>
     );
   }
-  const meta = LIFECYCLE_META[application.status as Exclude<ApplicationStatus, "done">];
+  // Fallback for a "done" row with no triage status: type-legal (triageStatus
+  // is TriageStatus | null) and not reachable through this app's own writes
+  // today, but db/schema.sql documents that triage_status carries no CHECK
+  // constraint on an existing database. A render-time throw here would take
+  // out the whole queue for one bad row, so this degrades to a neutral badge
+  // instead of indexing LIFECYCLE_META (which has no "done" key) with undefined.
+  const meta = LIFECYCLE_META[application.status as Exclude<ApplicationStatus, "done">] ?? {
+    label: "Unknown",
+    className: "text-ink-muted bg-paper-muted border-border",
+  };
   return <span className={`inline-flex items-center whitespace-nowrap rounded border px-2 py-0.5 text-sm ${meta.className}`}>{meta.label}</span>;
 }
 
@@ -278,10 +287,9 @@ export function ReviewQueue() {
                     <button
                       type="button"
                       onClick={() => setOpenId(application.id)}
-                      disabled={application.status !== "done"}
-                      className="mr-3 font-medium text-seal hover:underline disabled:cursor-not-allowed disabled:text-ink-muted disabled:no-underline"
+                      className="mr-3 font-medium text-seal hover:underline"
                     >
-                      Review
+                      {application.status === "done" ? "Review" : "Details"}
                     </button>
                     <button
                       type="button"
