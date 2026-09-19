@@ -38,7 +38,7 @@ Other scripts: `npm run build` / `npm start` (production build), `npm test` (uni
 
 - **Clean matches** — the automated check found nothing wrong. Still needs an agent's sign-off.
 - **Needs attention** — one or more fields didn't match, or couldn't be confirmed from the photos supplied.
-- **Approved** / **Rejected** — already signed off, with who decided what and why.
+- **Approved** / **Rejected** — already signed off, with the reason and the time of the decision.
 - **Not ready** — still processing, cancelled, or failed. These stay visible on purpose: an application that disappears from every tab never gets adjudicated.
 
 Search by brand or class/type and sort the list, then open an application to review it. The review window puts the label photos and the application fields side by side — each field marked as matching, needing a closer look, disagreeing, or not visible in the photos — and ends in **Approve** or **Reject**. A rejection records why; an approval doesn't need one.
@@ -83,7 +83,7 @@ The Government Warning text is fixed by federal statute (27 CFR 16.21), so it is
 
 - **Bold-formatting on "GOVERNMENT WARNING:" is not verified** — only that it's present and in all caps. Bold is a font-weight property that isn't reliably recoverable from OCR/vision text output; faking a confidence signal here seemed worse than being explicit that it's unverified and should be confirmed visually.
 - **No COLA integration.** Per the IT stakeholder, this is a standalone proof-of-concept; COLA integration was explicitly described as a separate, much larger effort.
-- **Low-quality images (angles, glare, poor lighting) aren't specially handled.** The stakeholder who raised this flagged it herself as possibly out of scope for a prototype; a bad photo will just produce lower-quality extraction or nulls, surfaced as "not found" rather than a crash.
+- **Low-quality images (angles, glare, poor lighting) aren't specially handled.** The stakeholder who raised this flagged it herself as possibly out of scope for a prototype; a bad photo will just produce lower-quality extraction or nulls, surfaced as "not found" (or, for the Government Warning specifically, "not shown") rather than a crash.
 - **Imports are capped at 300 rows** (matching the "200, 300 label applications" figure from the interviews) — generous for the described scenario, but still a bound on an endpoint with no auth in front of it.
 - **No true XLSX cell-embedded images** — import expects a spreadsheet of data plus a separate batch of image files matched by filename, not images embedded inside spreadsheet cells. Extracting those is a meaningfully bigger, more fragile undertaking for the same practical outcome.
 - **The upload-token endpoint is unauthenticated.** Vercel's guidance is to authenticate the user inside `onBeforeGenerateToken`; this prototype has no auth, so anyone who finds that endpoint can write to the Blob store within the type/size caps. That's a storage-abuse and cost vector, not only a data-exposure one — it's the one place where the no-auth posture has a consequence beyond visibility, and it would be the first thing to close in a real deployment.
