@@ -28,7 +28,7 @@ async function processOne(application: ApplicationRecord): Promise<void> {
     });
     await updateApplicationResult(application.id, {
       status: "done",
-      overallStatus: outcome.overallStatus,
+      triageStatus: outcome.triageStatus,
       fields: outcome.fields,
     });
   } catch (err) {

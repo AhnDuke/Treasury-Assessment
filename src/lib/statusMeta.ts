@@ -1,4 +1,4 @@
-import type { FieldStatus, OverallStatus } from "./types";
+import type { FieldStatus, ReviewDecision, TriageStatus } from "./types";
 
 // Plain typographic glyphs, not emoji: colored via our own palette instead
 // of the platform's built-in emoji rendering, so a status mark looks the
@@ -15,26 +15,39 @@ export const FIELD_STATUS_META: Record<
   not_shown: { glyph: "–", label: "Not shown", className: "text-ink-muted bg-paper-muted border-border", edgeClassName: "border-l-border" },
 };
 
-export const OVERALL_STATUS_META: Record<
-  OverallStatus,
-  { glyph: string; label: string; className: string; edgeClassName: string }
+// Note: FieldStatus and TriageStatus both have a "review" member, but they
+// mean different things at different levels — a single field needing a
+// closer look, versus a whole application needing attention. The labels
+// below correctly diverge ("Needs review" vs "Needs attention"), so this is
+// a trip hazard for a developer reading the two maps, not a user-facing bug.
+export const TRIAGE_STATUS_META: Record<
+  TriageStatus,
+  { glyph: string; label: string; shortLabel: string; className: string; edgeClassName: string }
 > = {
-  approved: {
+  clean: {
     glyph: "✓",
-    label: "Approved — all checks passed",
+    label: "Clean match — every field agrees with the application",
+    shortLabel: "Clean match",
     className: "text-verified bg-verified-bg border-verified-border",
     edgeClassName: "border-l-verified",
   },
-  flagged: {
+  review: {
     glyph: "!",
-    label: "Flagged for review",
+    label: "Needs attention — some fields could not be confirmed",
+    shortLabel: "Needs attention",
     className: "text-flag bg-flag-bg border-flag-border",
     edgeClassName: "border-l-flag",
   },
-  rejected: {
+  discrepancy: {
     glyph: "✕",
-    label: "Rejected — discrepancies found",
+    label: "Needs attention — the label disagrees with the application",
+    shortLabel: "Discrepancy",
     className: "text-reject bg-reject-bg border-reject-border",
     edgeClassName: "border-l-reject",
   },
+};
+
+export const DECISION_META: Record<ReviewDecision, { glyph: string; label: string; className: string }> = {
+  approved: { glyph: "✓", label: "Approved", className: "text-verified bg-verified-bg border-verified-border" },
+  rejected: { glyph: "✕", label: "Rejected", className: "text-reject bg-reject-bg border-reject-border" },
 };

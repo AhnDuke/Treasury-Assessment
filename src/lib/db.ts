@@ -1,5 +1,5 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import type { ApplicationData, ApplicationRecord, ApplicationStatus, BatchProgress, FieldResult, LabelImage, OverallStatus } from "./types";
+import type { ApplicationData, ApplicationRecord, ApplicationStatus, BatchProgress, FieldResult, LabelImage, ReviewDecision, TriageStatus } from "./types";
 
 let sql: NeonQueryFunction<false, false> | null = null;
 
@@ -24,9 +24,13 @@ function toApplicationRecord(row: any): ApplicationRecord {
     netContents: row.net_contents,
     images: row.images ?? [],
     status: row.status,
-    overallStatus: row.overall_status,
+    triageStatus: row.triage_status,
     fields: row.fields_json,
     errorMessage: row.error_message,
+    decision: row.decision,
+    decisionReason: row.decision_reason,
+    decidedAt: row.decided_at,
+    decisionFlaggedFields: row.decision_flagged_fields,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -65,7 +69,7 @@ export async function updateApplicationResult(
   id: string,
   update: {
     status: ApplicationStatus;
-    overallStatus?: OverallStatus | null;
+    triageStatus?: TriageStatus | null;
     fields?: FieldResult[] | null;
     errorMessage?: string | null;
   }
@@ -74,7 +78,7 @@ export async function updateApplicationResult(
   await db`
     UPDATE applications
     SET status = ${update.status},
-        overall_status = ${update.overallStatus ?? null},
+        triage_status = ${update.triageStatus ?? null},
         fields_json = ${update.fields ? JSON.stringify(update.fields) : null},
         error_message = ${update.errorMessage ?? null},
         updated_at = now()
@@ -137,5 +141,37 @@ export async function getBatchProgress(importBatchId: string): Promise<BatchProg
 export async function deleteApplication(id: string): Promise<ApplicationRecord | null> {
   const db = getSql();
   const rows = await db`DELETE FROM applications WHERE id = ${id} RETURNING *`;
+  return rows[0] ? toApplicationRecord(rows[0]) : null;
+}
+
+/**
+ * Records an agent's sign-off. The flagged-field snapshot is computed here
+ * from the row's own stored results rather than taken from the client, so it
+ * reflects what the agent was actually shown and can't be spoofed by a
+ * caller. Returns null if no such application exists.
+ */
+export async function recordDecision(
+  id: string,
+  decision: ReviewDecision,
+  reason: string | null
+): Promise<ApplicationRecord | null> {
+  const db = getSql();
+  const rows = await db`
+    UPDATE applications
+    SET decision = ${decision},
+        decision_reason = ${reason},
+        decided_at = now(),
+        decision_flagged_fields = COALESCE(
+          (
+            SELECT jsonb_agg(field_entry->>'field')
+            FROM jsonb_array_elements(fields_json) AS field_entry
+            WHERE field_entry->>'status' <> 'match' AND field_entry->>'status' <> 'not_shown'
+          ),
+          '[]'::jsonb
+        ),
+        updated_at = now()
+    WHERE id = ${id}
+    RETURNING *
+  `;
   return rows[0] ? toApplicationRecord(rows[0]) : null;
 }
