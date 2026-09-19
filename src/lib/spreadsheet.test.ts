@@ -4,43 +4,48 @@ import { rowToImportRow } from "./spreadsheet";
 const base = { brand_name: "OLD TOM DISTILLERY", class_type: "Bourbon", abv_percent: "45", net_contents: "750 mL" };
 
 describe("rowToImportRow", () => {
-  it("splits semicolon-separated filenames into an ordered list", () => {
-    const result = rowToImportRow({ ...base, filenames: "front.jpg; back.jpg" }, 2);
+  it("maps a row to application data and keeps its row number", () => {
+    const result = rowToImportRow({ ...base }, 2);
     expect(result).toEqual({
       row: {
-        filenames: ["front.jpg", "back.jpg"],
+        rowNumber: 2,
         data: { brandName: "OLD TOM DISTILLERY", classType: "Bourbon", abvPercent: 45, netContents: "750 mL" },
+        suggestedFilenames: [],
       },
     });
   });
 
-  it("errors when filenames are missing entirely", () => {
+  it("accepts a sheet with no filenames column at all", () => {
+    // Photos are attached per row in the UI now, so a sheet that names no
+    // files is the normal case rather than an error.
     const result = rowToImportRow({ ...base }, 3);
-    expect(result).toEqual({ error: 'Row 3: missing "filenames".' });
+    expect("error" in result).toBe(false);
   });
 
-  it("accepts a single filename, which may be a composite front-and-back photo", () => {
-    const result = rowToImportRow({ ...base, filenames: "front-and-back.jpg" }, 4);
-    expect(result).toEqual({
-      row: {
-        filenames: ["front-and-back.jpg"],
-        data: { brandName: "OLD TOM DISTILLERY", classType: "Bourbon", abvPercent: 45, netContents: "750 mL" },
-      },
-    });
+  it("carries semicolon-separated filenames through as a hint", () => {
+    const result = rowToImportRow({ ...base, filenames: "front.jpg; back.jpg" }, 4);
+    expect("row" in result && result.row.suggestedFilenames).toEqual(["front.jpg", "back.jpg"]);
   });
 
-  it("rejects more than three images", () => {
-    const result = rowToImportRow({ ...base, filenames: "a.jpg;b.jpg;c.jpg;d.jpg" }, 5);
-    expect("error" in result && result.error).toContain("more than 3 images");
+  it("still reads the legacy single filename column", () => {
+    const result = rowToImportRow({ ...base, filename: "front.jpg" }, 5);
+    expect("row" in result && result.row.suggestedFilenames).toEqual(["front.jpg"]);
+  });
+
+  it("does not reject a row for naming more files than an application may carry", () => {
+    // The hint is not a constraint — the count that matters is how many
+    // photos the agent actually attaches, which is checked at submit time.
+    const result = rowToImportRow({ ...base, filenames: "a.jpg;b.jpg;c.jpg;d.jpg;e.jpg" }, 6);
+    expect("error" in result).toBe(false);
   });
 
   it("errors when a required application field is missing", () => {
-    const result = rowToImportRow({ ...base, class_type: "", filenames: "a.jpg;b.jpg" }, 6);
-    expect("error" in result).toBe(true);
+    const result = rowToImportRow({ ...base, class_type: "" }, 7);
+    expect("error" in result && result.error).toContain("Row 7");
   });
 
   it("errors when abv_percent isn't a number", () => {
-    const result = rowToImportRow({ ...base, abv_percent: "strong", filenames: "a.jpg;b.jpg" }, 7);
+    const result = rowToImportRow({ ...base, abv_percent: "strong" }, 8);
     expect("error" in result && result.error).toContain("is not a number");
   });
 });

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createApplication, listApplications, updateApplicationResult } from "@/lib/db";
 import { downloadLabelImage } from "@/lib/blob";
 import { validateImages } from "@/lib/imagePayload";
+import { drainPendingApplications } from "@/lib/processQueue";
 import type { ApplicationData, ApplicationStatus } from "@/lib/types";
 import { runVerification } from "@/lib/verify";
 
@@ -45,6 +46,28 @@ export async function POST(request: NextRequest) {
   }
 
   const data: ApplicationData = { brandName, classType, abvPercent, netContents };
+
+  // A row submitted from a guided import carries its batch id. Those are
+  // queued and checked in the background rather than inline: an agent working
+  // a 40-row sheet shouldn't wait several seconds per row for a Claude call,
+  // and the batch id is what lets the review queue show the batch's progress
+  // and offer to cancel the rest. A one-off single add has nothing to batch
+  // with and no reason to defer, so it keeps its inline result.
+  // Checked against the UUID shape rather than passed straight through: the
+  // column is a UUID, so a malformed value would surface as an opaque database
+  // error instead of a clear one.
+  const rawBatchId = typeof body.importBatchId === "string" ? body.importBatchId.trim() : "";
+  if (rawBatchId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawBatchId)) {
+    return NextResponse.json({ error: "That import batch reference isn't valid." }, { status: 400 });
+  }
+  const importBatchId = rawBatchId || null;
+
+  if (importBatchId) {
+    const queued = await createApplication(data, imageResult.images, "pending", importBatchId);
+    after(() => drainPendingApplications());
+    return NextResponse.json({ application: queued });
+  }
+
   let application = await createApplication(data, imageResult.images, "processing");
 
   try {
