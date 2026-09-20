@@ -288,3 +288,95 @@ describe("country of origin", () => {
     expect(fields.find((f) => f.field === "countryOfOrigin")!.status).toBe("mismatch");
   });
 });
+
+describe("evidence gaps beyond the warning statement", () => {
+  it("does not call a missing bottler a violation when only the front was photographed", () => {
+    // Same reasoning as the Government Warning: the name and address is small
+    // print on the back, so a front-only photo cannot establish its absence.
+    const fields = compareLabelToApplication(
+      { ...application, bottlerInfo: "Old Tom Distillery, Bardstown, KY" },
+      extracted({ bottlerInfo: null, warningStatementText: null, backLabelVisible: false })
+    );
+    expect(fields.find((f) => f.field === "bottlerInfo")!.status).toBe("not_shown");
+    expect(determineTriageStatus(fields)).toBe("review");
+  });
+
+  it("still calls it a violation when a back view was supplied and carries none", () => {
+    const fields = compareLabelToApplication(
+      { ...application, bottlerInfo: "Old Tom Distillery, Bardstown, KY" },
+      extracted({ bottlerInfo: null, backLabelVisible: true })
+    );
+    expect(fields.find((f) => f.field === "bottlerInfo")!.status).toBe("missing");
+    expect(determineTriageStatus(fields)).toBe("discrepancy");
+  });
+
+  it("applies the same rule to country of origin on an import", () => {
+    const fields = compareLabelToApplication(
+      { ...application, countryOfOrigin: "Scotland" },
+      extracted({ countryOfOrigin: null, warningStatementText: null, backLabelVisible: false })
+    );
+    expect(fields.find((f) => f.field === "countryOfOrigin")!.status).toBe("not_shown");
+  });
+});
+
+describe("a front-only photo cannot support a hard finding on back-label print", () => {
+  it("downgrades a bottler mismatch to review when no back view was supplied", () => {
+    // A front-only photo often offers up something else as the name and
+    // address, such as the town printed under the brand. Calling that a
+    // violation asserts a finding about text nobody photographed.
+    const fields = compareLabelToApplication(
+      { ...application, bottlerInfo: "Old Tom Distillery, Bardstown, KY" },
+      extracted({ bottlerInfo: "Bardstown Kentucky", warningStatementText: null, backLabelVisible: false })
+    );
+    const field = fields.find((f) => f.field === "bottlerInfo")!;
+    expect(field.status).toBe("review");
+    expect(field.detail).toContain("back");
+  });
+
+  it("keeps it a mismatch when a back view was supplied", () => {
+    const fields = compareLabelToApplication(
+      { ...application, bottlerInfo: "Old Tom Distillery, Bardstown, KY" },
+      extracted({ bottlerInfo: "Bottled by Summit Crossing Reserve Portland OR", backLabelVisible: true })
+    );
+    expect(fields.find((f) => f.field === "bottlerInfo")!.status).toBe("mismatch");
+  });
+});
+
+describe("formatting differences that are not defects", () => {
+  it("accepts the name and address a label is required to write", () => {
+    // Reported from a real run as an 82% mismatch. The company and the address
+    // are identical; every difference is either the production phrase the
+    // regulations require, the article in front of it, or how a person
+    // abbreviates a state.
+    const fields = compareLabelToApplication(
+      { ...application, bottlerInfo: "Smirnoff Co, New York, NY" },
+      extracted({ bottlerInfo: "PRODUCED BY THE SMIRNOFF CO., NEW YORK, N.Y." })
+    );
+    expect(fields.find((f) => f.field === "bottlerInfo")!.status).toBe("match");
+  });
+
+  it("accepts a country written a different way", () => {
+    const fields = compareLabelToApplication(
+      { ...application, countryOfOrigin: "USA" },
+      extracted({ countryOfOrigin: "MADE IN AMERICA" })
+    );
+    expect(fields.find((f) => f.field === "countryOfOrigin")!.status).toBe("match");
+    expect(determineTriageStatus(fields)).toBe("clean");
+  });
+
+  it("does not let that leniency accept the wrong country", () => {
+    const fields = compareLabelToApplication(
+      { ...application, countryOfOrigin: "USA" },
+      extracted({ countryOfOrigin: "Product of Mexico" })
+    );
+    expect(fields.find((f) => f.field === "countryOfOrigin")!.status).toBe("mismatch");
+  });
+
+  it("does not let that leniency accept the wrong bottler", () => {
+    const fields = compareLabelToApplication(
+      { ...application, bottlerInfo: "Smirnoff Co, New York, NY" },
+      extracted({ bottlerInfo: "PRODUCED BY THE SUMMIT CROSSING CO., PORTLAND, OR." })
+    );
+    expect(fields.find((f) => f.field === "bottlerInfo")!.status).toBe("mismatch");
+  });
+});

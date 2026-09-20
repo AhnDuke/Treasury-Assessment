@@ -52,3 +52,6 @@ CLAUDE.md
 # Delete this line and commit the folder if reviewers should get it without
 # running the generator themselves.
 /test-batch
+
+# local agent/editor config
+.claude/

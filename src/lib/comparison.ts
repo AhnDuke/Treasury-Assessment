@@ -1,6 +1,7 @@
 import { STATUTORY_WARNING_TEXT } from "./warningStatement";
 import { abvRequirement, resolveBeverageType, type AbvRule } from "./beverageType";
 import { collapseWhitespace, normalizeForComparison, similarityRatio } from "./textMatch";
+import { canonicalCountry, normalizeNameAddress } from "./labelText";
 import type { ApplicationData, ExtractedLabelData, FieldResult, TriageStatus } from "./types";
 
 // Below this similarity ratio (post case/punctuation normalization) a text
@@ -147,50 +148,41 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
 }
 
 /**
- * Strips the lead-in a label puts before a name and address. The regulations
- * require one of several phrases ("bottled by", "produced and bottled by",
- * "imported by", and so on), and the application almost never repeats it, so
- * comparing the raw strings penalised a label for wording the rules demand.
- */
-const PRODUCTION_VERB =
-  /\b(?:bottled|packed|produced|manufactured|imported|brewed|canned|distilled|vinted|blended|prepared|made)\b/i;
-
-function stripNameAddressLeadIn(value: string): string {
-  const text = value.trim();
-  // Take the opening clause up to the first "by". A fixed list of phrases was
-  // not enough: labels write things like "Distilled in Scotland and imported
-  // by ...", and anchoring on known phrases left that unstripped, which read
-  // as a mismatch against an application that simply named the company.
-  //
-  // Non-greedy on purpose, so an address that happens to contain another "by"
-  // later cannot swallow the name itself. The clause is only removed when it
-  // actually reads like a production or import statement, so a name beginning
-  // with an unrelated "by" is left alone.
-  const match = /^(.*?\bby)\s+/i.exec(text);
-  if (match && PRODUCTION_VERB.test(match[1])) {
-    return text.slice(match[0].length).trim();
-  }
-  return text;
-}
-
-/**
  * Name and address of the bottler, producer or importer. Mandatory on every
  * label, so the label is checked for one even when the application does not
  * declare a value to compare against.
  */
-function compareBottlerInfo(expected: string | null | undefined, extracted: string | null): FieldResult {
+function compareBottlerInfo(
+  expected: string | null | undefined,
+  extracted: string | null,
+  backLabelVisible: boolean
+): FieldResult {
   const label = "Name and Address of Bottler/Producer";
   const declared = expected?.trim() ? expected.trim() : null;
   const found = extracted?.trim() ? extracted.trim() : null;
 
   if (!found) {
+    // Same distinction the warning statement draws. This is small print on the
+    // back or side in almost every case, so "not found" means one thing when
+    // we were shown that side and something else entirely when we weren't.
+    if (!backLabelVisible) {
+      return {
+        field: "bottlerInfo",
+        label,
+        expected: declared,
+        extracted: null,
+        status: "not_shown",
+        detail:
+          "No photo shows the back or side of the packaging, where this is almost always printed. Request a photo of the back before deciding.",
+      };
+    }
     return {
       field: "bottlerInfo",
       label,
       expected: declared,
       extracted: null,
       status: "missing",
-      detail: "Every label must carry the name and address of the bottler, producer or importer, and none was found.",
+      detail: "Every label must carry the name and address of the bottler, producer or importer, and a back or side view was supplied carrying none.",
     };
   }
   if (!declared) {
@@ -207,8 +199,16 @@ function compareBottlerInfo(expected: string | null | undefined, extracted: stri
     };
   }
 
-  const ratio = similarityRatio(stripNameAddressLeadIn(declared), stripNameAddressLeadIn(found));
-  if (ratio === 1) return { field: "bottlerInfo", label, expected: declared, extracted: found, status: "match" };
+  // Compared on the identifying part only. A label must write "PRODUCED BY THE
+  // SMIRNOFF CO., NEW YORK, N.Y." where an application says "Smirnoff Co, New
+  // York, NY": same company, same address, and the difference is entirely
+  // wording the regulations require plus how a person abbreviates a state.
+  const normalizedDeclared = normalizeNameAddress(declared);
+  const normalizedFound = normalizeNameAddress(found);
+  if (normalizedDeclared === normalizedFound) {
+    return { field: "bottlerInfo", label, expected: declared, extracted: found, status: "match" };
+  }
+  const ratio = similarityRatio(normalizedDeclared, normalizedFound);
   if (ratio >= FUZZY_MATCH_THRESHOLD) {
     return {
       field: "bottlerInfo",
@@ -217,6 +217,20 @@ function compareBottlerInfo(expected: string | null | undefined, extracted: stri
       extracted: found,
       status: "review",
       detail: `${Math.round(ratio * 100)}% similar to the submitted value. Address formatting often differs harmlessly, so confirm manually.`,
+    };
+  }
+  // Without a back view we cannot be confident we read the real thing: this
+  // is back-label print, and what a front-only photo offers up is often
+  // something else entirely, such as the town under the brand name. Reporting
+  // that as a violation asserts a finding about text we never saw.
+  if (!backLabelVisible) {
+    return {
+      field: "bottlerInfo",
+      label,
+      expected: declared,
+      extracted: found,
+      status: "review",
+      detail: `Only ${Math.round(ratio * 100)}% similar to the submitted value, but no photo shows the back or side where this is normally printed, so this may not be the statement itself. Request a photo of the back.`,
     };
   }
   return {
@@ -235,13 +249,27 @@ function compareBottlerInfo(expected: string | null | undefined, extracted: stri
  * is what makes this an import: absent means domestic and the check is skipped
  * entirely rather than inventing a requirement that does not apply.
  */
-function compareCountryOfOrigin(expected: string | null | undefined, extracted: string | null): FieldResult | null {
+function compareCountryOfOrigin(
+  expected: string | null | undefined,
+  extracted: string | null,
+  backLabelVisible: boolean
+): FieldResult | null {
   const declared = expected?.trim();
   if (!declared) return null;
 
   const label = "Country of Origin";
   const found = extracted?.trim() ? extracted.trim() : null;
   if (!found) {
+    if (!backLabelVisible) {
+      return {
+        field: "countryOfOrigin",
+        label,
+        expected: declared,
+        extracted: null,
+        status: "not_shown",
+        detail: "No photo shows the back or side of the packaging, where this is usually printed. Request a photo of the back before deciding.",
+      };
+    }
     return {
       field: "countryOfOrigin",
       label,
@@ -252,16 +280,21 @@ function compareCountryOfOrigin(expected: string | null | undefined, extracted: 
     };
   }
 
-  // A label writes it as "Product of Mexico" where an application says
-  // "Mexico", so containment counts as a match before falling back to
-  // similarity.
-  const normalizedDeclared = normalizeForComparison(declared);
-  const normalizedFound = normalizeForComparison(found);
-  if (normalizedFound.includes(normalizedDeclared) || normalizedDeclared.includes(normalizedFound)) {
+  // A label writes "Product of Mexico" or "MADE IN AMERICA" where an
+  // application says "Mexico" or "USA". Canonicalising removes the wrapper
+  // phrase and resolves the handful of names that mean the same country, so
+  // the check is about which country it is, not how it was worded.
+  const canonicalDeclared = canonicalCountry(declared);
+  const canonicalFound = canonicalCountry(found);
+  if (
+    canonicalDeclared === canonicalFound ||
+    canonicalFound.includes(canonicalDeclared) ||
+    canonicalDeclared.includes(canonicalFound)
+  ) {
     return { field: "countryOfOrigin", label, expected: declared, extracted: found, status: "match" };
   }
 
-  const ratio = similarityRatio(declared, found);
+  const ratio = similarityRatio(canonicalDeclared, canonicalFound);
   if (ratio >= FUZZY_MATCH_THRESHOLD) {
     return {
       field: "countryOfOrigin",
@@ -270,6 +303,17 @@ function compareCountryOfOrigin(expected: string | null | undefined, extracted: 
       extracted: found,
       status: "review",
       detail: `${Math.round(ratio * 100)}% similar to the submitted value. Confirm manually.`,
+    };
+  }
+  if (!backLabelVisible) {
+    return {
+      field: "countryOfOrigin",
+      label,
+      expected: declared,
+      extracted: found,
+      status: "review",
+      detail:
+        "This does not match the application, but no photo shows the back or side where the country of origin is normally printed. Request a photo of the back.",
     };
   }
   return {
@@ -369,11 +413,11 @@ export function compareLabelToApplication(expected: ApplicationData, extracted: 
     compareTextField("classType", "Class/Type Designation", expected.classType, extracted.classType),
     compareAbv(expected.abvPercent, extracted.abvPercent, abvRule),
     compareNetContents(expected.netContents, extracted.netContents),
-    compareBottlerInfo(expected.bottlerInfo, extracted.bottlerInfo),
+    compareBottlerInfo(expected.bottlerInfo, extracted.bottlerInfo, extracted.backLabelVisible),
     // Null for a domestic product, and dropped rather than shown as a
     // non-finding, so the field list stays what this label actually has to
     // carry.
-    compareCountryOfOrigin(expected.countryOfOrigin, extracted.countryOfOrigin),
+    compareCountryOfOrigin(expected.countryOfOrigin, extracted.countryOfOrigin, extracted.backLabelVisible),
     compareWarningStatement(extracted.warningStatementText, extracted.backLabelVisible),
   ].filter((field): field is FieldResult => field !== null);
 }

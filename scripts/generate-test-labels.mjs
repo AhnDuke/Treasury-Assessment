@@ -453,10 +453,12 @@ for (const [i, row] of ROWS.entries()) {
     netContents: perturbation.expect.netContents ?? "match",
     // Every label carries a name and address, and the sheet declares the same
     // one without the lead-in phrase, so this should always reconcile.
-    bottlerInfo: "match",
+    // The name and address is small print on the back, so a front-only photo
+    // cannot confirm it any more than it can confirm the warning.
+    bottlerInfo: row.images === "front-only" ? "not_shown" : "match",
     // Only the two imported products declare a country of origin, and only a
-    // declared one is checked at all.
-    countryOfOrigin: product.country ? "match" : null,
+    // declared one is checked at all. Same evidence gap applies.
+    countryOfOrigin: product.country ? (row.images === "front-only" ? "not_shown" : "match") : null,
     warningStatement: warn.status,
   };
 

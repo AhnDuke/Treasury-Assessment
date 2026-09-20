@@ -173,17 +173,75 @@ async function runExtractionCall(
 const SHARED_INSTRUCTIONS =
   "These images are multiple photos of the same product's labels (typically front and back, sometimes a side or neck label). A given field may appear on only one of them, so check every image before concluding a field is absent. Extract each field exactly as printed, preserving original casing and punctuation verbatim. The Government Warning statement is usually small print on the back or side label. Read it carefully and transcribe it word for word, including the 'GOVERNMENT WARNING:' header. The name and address of the bottler or producer, and the country of origin if there is one, are also usually small print on the back or side. Also report whether any image shows a face other than the front of the packaging, so that a field which is absent can be distinguished from a face nobody photographed. Only use null for a field that is genuinely not present on any image; do not use null merely because text is small or hard to read.";
 
-export async function extractLabelData(images: EncodedImage[]): Promise<ExtractedLabelData> {
-  const input = await runExtractionCall(MODEL, EXTRACTION_TOOL, images, SHARED_INSTRUCTIONS);
-  const data = input as unknown as ExtractedLabelData;
+/**
+ * Words a model reaches for instead of returning null, even when the schema
+ * allows null and the prompt asks for it. Observed in practice: a front-only
+ * label came back with the literal string "<UNKNOWN>" for the Government
+ * Warning.
+ *
+ * That is not a cosmetic difference. A non-empty string means "the label says
+ * this", so "<UNKNOWN>" was compared against the statutory text and reported
+ * as a wording violation, which is exactly the false finding the evidence-gap
+ * handling exists to prevent. Absence has to reach the comparison as absence.
+ */
+const ABSENT_SENTINEL =
+  /^[\s<[("'*-]*(?:unknown|none|null|nil|n\/?a|blank|empty|missing|not\s+(?:found|present|visible|shown|stated|specified|listed|applicable|available)|no\s+(?:value|text|data))[\s>\])"'*.-]*$/i;
+
+/**
+ * A value made only of whitespace, dots and dashes: the same statement with no
+ * words in it. Built from escapes rather than written as a literal so the
+ * dash characters survive reformatting, and so the hyphen stays first and
+ * cannot be read as the start of a character range.
+ */
+const BLANKISH = new RegExp("^[-\\s._\\u2013\\u2014]+$");
+
+/**
+ * Normalises one extracted text field. Anything that is not a usable string,
+ * or that is one of the placeholders above, becomes null.
+ */
+export function normalizeExtractedText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (ABSENT_SENTINEL.test(trimmed)) return null;
+  // A lone dash or ellipsis is the same statement with no words in it.
+  if (BLANKISH.test(trimmed)) return null;
+  return trimmed;
+}
+
+function normalizeExtractedNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const text = normalizeExtractedText(value);
+  if (text === null) return null;
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  return match ? parseFloat(match[0]) : null;
+}
+
+/**
+ * Turns whatever the tool call produced into an ExtractedLabelData we can
+ * trust. The SDK hands back the model's JSON unvalidated, so this is the only
+ * point where its shape is actually established rather than asserted.
+ */
+export function toExtractedLabelData(input: Record<string, unknown>): ExtractedLabelData {
   return {
-    ...data,
+    brandName: normalizeExtractedText(input.brandName),
+    classType: normalizeExtractedText(input.classType),
+    abvPercent: normalizeExtractedNumber(input.abvPercent),
+    netContents: normalizeExtractedText(input.netContents),
+    bottlerInfo: normalizeExtractedText(input.bottlerInfo),
+    countryOfOrigin: normalizeExtractedText(input.countryOfOrigin),
+    warningStatementText: normalizeExtractedText(input.warningStatementText),
     // Coerced deliberately, not left to fall through as `undefined`: if the
     // model ever omits this field, the safe default is "no back label
     // visible" (an evidence gap gets reported, not a fabricated violation),
     // and Boolean(...) makes that default explicit rather than accidental.
-    backLabelVisible: Boolean(data.backLabelVisible),
+    backLabelVisible: Boolean(input.backLabelVisible),
   };
+}
+
+export async function extractLabelData(images: EncodedImage[]): Promise<ExtractedLabelData> {
+  const input = await runExtractionCall(MODEL, EXTRACTION_TOOL, images, SHARED_INSTRUCTIONS);
+  return toExtractedLabelData(input);
 }
 
 /**
@@ -207,5 +265,17 @@ export async function getSecondOpinion(
     images,
     `${SHARED_INSTRUCTIONS} Extract only the requested fields.`
   );
-  return input as unknown as Partial<ExtractedLabelData>;
+  // Normalised the same way as the first pass, and narrowed to the fields
+  // actually asked for. A second opinion of "<UNKNOWN>" would otherwise be
+  // shown to the reviewer as what the stronger model read.
+  const normalized = toExtractedLabelData(input);
+  const result: Partial<ExtractedLabelData> = {};
+  for (const key of extractionKeys) {
+    if (key in input) {
+      // Safe: extractionKeys excludes backLabelVisible, so every key here is
+      // one of the nullable value fields.
+      (result as Record<string, unknown>)[key] = normalized[key];
+    }
+  }
+  return result;
 }
